@@ -15,7 +15,6 @@ public class B_BlinkyAI : BaseGhost
 
     [SerializeField] private B_DotManager _dotManager;
 
-    // エルロイ状態フラグ
     private bool _elroy1Active;
     private bool _elroy2Active;
 
@@ -25,7 +24,7 @@ public class B_BlinkyAI : BaseGhost
 
     /// <summary>
     /// エルロイ状態をリセットします。
-    /// レベル開始時に B_GameManager から呼んでください。
+    /// レベル開始時・死亡後に B_GameManager から呼んでください。
     /// </summary>
     public void ResetElroy()
     {
@@ -36,12 +35,6 @@ public class B_BlinkyAI : BaseGhost
     #endregion
 
     #region 非公開メソッド
-
-    protected override void OnAwake()
-    {
-        // スキャッターターゲット: 迷路右上の到達不能タイル
-        _scatterTarget = new Vector2Int(25, -3);
-    }
 
     private void Start()
     {
@@ -71,9 +64,7 @@ public class B_BlinkyAI : BaseGhost
     /// スキャッター無効化によりパックマンを縄張りに逃げても追跡し続けます。
     /// </summary>
     protected override Vector2Int GetScatterTarget()
-    {
-        return _elroy2Active ? GetChaseTarget() : base.GetScatterTarget();
-    }
+        => _elroy2Active ? GetChaseTarget() : base.GetScatterTarget();
 
     /// <summary>エルロイ状態に応じた速度倍率を返します。</summary>
     protected override float GetNormalSpeedRate()
@@ -83,7 +74,6 @@ public class B_BlinkyAI : BaseGhost
         return base.GetNormalSpeedRate();
     }
 
-    /// <summary>B_DotManager.OnElroyThreshold の購読ハンドラ。</summary>
     private void HandleElroyThreshold(int level)
     {
         if (level == 1) _elroy1Active = true;

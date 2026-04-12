@@ -21,12 +21,6 @@ public class B_PinkyAI : BaseGhost
 
     #region 非公開メソッド
 
-    protected override void OnAwake()
-    {
-        // スキャッターターゲット: 迷路左上の到達不能タイル
-        _scatterTarget = new Vector2Int(2, -3);
-    }
-
     /// <summary>
     /// パックマンの進行方向 4 タイル先をターゲットにします。
     /// 上向き時は原作バグを再現して 4 上 + 4 左 になります。
@@ -35,11 +29,8 @@ public class B_PinkyAI : BaseGhost
     {
         if (_pacManMover == null) return _scatterTarget;
 
-        Vector2Int pacTile = _pacManMover.CurrentTile;
-        Vector2Int pacDir  = _pacManMover.CurrentDir;
-
-        // 4 タイル先
-        Vector2Int target = pacTile + pacDir * LookAheadTiles;
+        Vector2Int pacDir = _pacManMover.CurrentDir;
+        Vector2Int target = _pacManMover.CurrentTile + pacDir * LookAheadTiles;
 
         // 上向きバグ再現: 上を向いているとき、さらに左へ 4 タイルずれる
         if (pacDir == DirUp)

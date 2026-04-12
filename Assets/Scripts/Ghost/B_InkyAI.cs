@@ -27,9 +27,6 @@ public class B_InkyAI : BaseGhost
 
     protected override void OnAwake()
     {
-        // スキャッターターゲット: 迷路右下の到達不能タイル
-        _scatterTarget = new Vector2Int(27, 29);
-
         if (_blinky == null)
             Debug.LogError("[B_InkyAI] _blinky がアタッチされていません。");
     }
@@ -47,20 +44,17 @@ public class B_InkyAI : BaseGhost
     {
         if (_pacManMover == null || _blinky == null) return _scatterTarget;
 
-        Vector2Int pacTile = _pacManMover.CurrentTile;
         Vector2Int pacDir  = _pacManMover.CurrentDir;
 
         // ① 中間点: パックマン進行方向 2 タイル先
-        Vector2Int pivot = pacTile + pacDir * PivotTiles;
+        Vector2Int pivot = _pacManMover.CurrentTile + pacDir * PivotTiles;
 
         // 上向きバグ再現: 上を向いているとき、さらに左へ 2 タイルずれる
         if (pacDir == DirUp)
             pivot += UpBugOffset;
 
         // ② ブリンキーから中間点へのベクトルを 2 倍延長
-        Vector2Int blinkyTile = _blinky.CurrentTile;
-        Vector2Int offset     = pivot - blinkyTile;
-
+        Vector2Int offset = pivot - _blinky.CurrentTile;
         return pivot + offset; // = blinkyTile + offset * 2
     }
 
