@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:anonimo0611.web.fc2.com)",
+      "WebSearch",
+      "WebFetch(domain:pacman.holenet.info)",
+      "WebFetch(domain:github.com)",
+      "Bash(where unity:*)",
+      "Bash(where Unity)",
+      "Bash(dir \"C:\\\\Program Files\\\\Unity\\\\Hub\\\\Editor\" /b)",
+      "Bash('C:/Program Files/Unity/Hub/Editor/6000.4.2f1/Editor/Unity.exe' -batchmode -nographics -quit -projectPath C:/Users/mahir/UnityProject/Pac-Man_02 -logFile C:/Users/mahir/UnityProject/compile_test.log)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(tasklist)",
+      "Bash('C:/Program Files/Unity/Hub/Editor/6000.4.2f1/Editor/Unity.exe' -batchmode -nographics -projectPath C:/Users/mahir/UnityProject/Pac-Man_02 -executeMethod CompileChecker.CheckAndQuit -logFile C:/Users/mahir/UnityProject/compile_test2.log)",
+      "Bash(echo \"Exit: $?\")"
+    ]
+  }
+}
