@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 4130177743425566052}
   - component: {fileID: 2612834954777267591}
   - component: {fileID: 4389374156567768709}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: P_Inky
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -137,7 +137,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 0.3
   m_Center: {x: 0, y: 0, z: 0}
@@ -159,8 +159,7 @@ MonoBehaviour:
   _frightenedSpeedRate: 0.5
   _deadSpeedRate: 1.5
   _mazeGenerator: {fileID: 0}
-  _rb: {fileID: 4130177743425566052}
-  _pacManMover: {fileID: 0}
+  _pacManMove: {fileID: 0}
   _houseEntranceTile: {x: 13, y: 11}
   _houseCenterTile: {x: 13, y: 13}
   _redZoneTiles:
@@ -168,4 +167,5 @@ MonoBehaviour:
   - {x: 21, y: 13}
   - {x: 6, y: 19}
   - {x: 21, y: 19}
+  _debugGizmoColor: {r: 1, g: 0, b: 0, a: 1}
   _blinky: {fileID: 0}

@@ -40,7 +40,7 @@ MonoBehaviour:
   - '#.##########.##.##########.#'
   - '#..........................#'
   - '############################'
-  _pacManSpawn: {x: 13, y: 25}
+  _pacManSpawn: {x: 13, y: 19}
   _blinkySpawn: {x: 13, y: 11}
   _pinkySpawn: {x: 13, y: 13}
   _inkySpawn: {x: 11, y: 13}

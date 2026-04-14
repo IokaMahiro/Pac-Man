@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 9012665266256905753}
   - component: {fileID: 4004534498866600538}
   - component: {fileID: 113387104654984349}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: P_Blinky
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -137,7 +137,7 @@ SphereCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 1
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Radius: 0.3
   m_Center: {x: 0, y: 0, z: 0}
@@ -159,8 +159,7 @@ MonoBehaviour:
   _frightenedSpeedRate: 0.5
   _deadSpeedRate: 1.5
   _mazeGenerator: {fileID: 0}
-  _rb: {fileID: 9012665266256905753}
-  _pacManMover: {fileID: 0}
+  _pacManMove: {fileID: 0}
   _houseEntranceTile: {x: 13, y: 11}
   _houseCenterTile: {x: 13, y: 13}
   _redZoneTiles:
@@ -168,6 +167,7 @@ MonoBehaviour:
   - {x: 21, y: 13}
   - {x: 6, y: 19}
   - {x: 21, y: 19}
+  _debugGizmoColor: {r: 1, g: 0, b: 0, a: 1}
   _elroy1SpeedRate: 0.8
   _elroy2SpeedRate: 0.85
   _dotManager: {fileID: 0}

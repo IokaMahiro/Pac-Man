@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// ゲーム全体の状態機械を管理するビヘイビア。
-/// スキャッター / チェイス サイクル・フライテンドモード・衝突判定・残機 / レベル管理を担います。
+/// スキャッター / チェイス サイクル・フライテンドモード・ゴースト衝突処理・残機 / レベル管理を担います。
 /// </summary>
 /// <remarks>
 /// ゲームフロー:
@@ -107,7 +107,7 @@ public class B_GameManager : MonoBehaviour
     private float _phaseTimer;
     private bool  _scatterChasePaused; // フライテンド中はタイマーを停止
 
-    // ── ゴースト配列（衝突判定・一括モード切替に使用）─
+    // ── ゴースト配列（一括モード切替に使用）─────────
     private BaseGhost[] _allGhosts;
 
     // ── イベント ────────────────────────────────────
@@ -165,6 +165,9 @@ public class B_GameManager : MonoBehaviour
             _dotManager.OnLevelClear     += HandleLevelClear;
         }
 
+        if (_pacManMover != null)
+            _pacManMover.OnGhostHit += HandleGhostHit;
+
         InitializeLevel(isNewLevel: true);
     }
 
@@ -175,6 +178,9 @@ public class B_GameManager : MonoBehaviour
             _dotManager.OnEnergizerEaten -= HandleEnergizerEaten;
             _dotManager.OnLevelClear     -= HandleLevelClear;
         }
+
+        if (_pacManMover != null)
+            _pacManMover.OnGhostHit -= HandleGhostHit;
     }
 
     private void Update()
@@ -195,7 +201,6 @@ public class B_GameManager : MonoBehaviour
         if (_gameState != GameState.Playing) return;
 
         UpdateScatterChaseTimer();
-        CheckGhostCollisions();
     }
 
     // ─────────────────────────────────────────────────
@@ -348,33 +353,34 @@ public class B_GameManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────
-    //  衝突判定
+    //  衝突判定（OnGhostHit イベントから受信）
     // ─────────────────────────────────────────────────
 
     /// <summary>
-    /// パックマンと全ゴーストのタイル一致を FixedUpdate で検査します。
+    /// B_PacManMover.OnGhostHit の購読ハンドラ。
+    /// ゴーストのモードに応じて「食べる」か「死亡」かを分岐します。
     /// </summary>
-    private void CheckGhostCollisions()
+    /// <remarks>
+    /// House / Dead モードのゴーストは当たり判定なし（スルー）。
+    /// Playing 状態以外では無視し、連続衝突による重複処理を防ぎます。
+    /// </remarks>
+    private void HandleGhostHit(BaseGhost ghost)
     {
-        Vector2Int pacTile = _pacManMover.CurrentTile;
+        if (_gameState != GameState.Playing) return;
 
-        foreach (BaseGhost ghost in _allGhosts)
+        switch (ghost.CurrentMode)
         {
-            if (ghost.CurrentTile != pacTile) continue;
+            case BaseGhost.GhostMode.Frightened:
+                EatGhost(ghost);
+                break;
 
-            switch (ghost.CurrentMode)
-            {
-                case BaseGhost.GhostMode.Frightened:
-                    EatGhost(ghost);
-                    break;
+            case BaseGhost.GhostMode.Scatter:
+            case BaseGhost.GhostMode.Chase:
+            case BaseGhost.GhostMode.ExitHouse:
+                StartDeathSequence();
+                break;
 
-                case BaseGhost.GhostMode.Scatter:
-                case BaseGhost.GhostMode.Chase:
-                case BaseGhost.GhostMode.ExitHouse:
-                    StartDeathSequence();
-                    return; // 死亡確定後は他ゴーストとの判定を打ち切る
-                    // House / Dead は当たり判定なし
-            }
+            // House / Dead は当たり判定なし
         }
     }
 

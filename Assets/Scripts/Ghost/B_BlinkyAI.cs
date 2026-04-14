@@ -55,8 +55,8 @@ public class B_BlinkyAI : BaseGhost
     /// <summary>パックマンの現在タイルをそのまま返します。</summary>
     protected override Vector2Int GetChaseTarget()
     {
-        if (_pacManMover == null) return _scatterTarget;
-        return _pacManMover.CurrentTile;
+        if (_pacManMove == null) return _scatterTarget;
+        return _pacManMove.CurrentTile;
     }
 
     /// <summary>

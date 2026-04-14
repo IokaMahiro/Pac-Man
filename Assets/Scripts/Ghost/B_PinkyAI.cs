@@ -27,10 +27,10 @@ public class B_PinkyAI : BaseGhost
     /// </summary>
     protected override Vector2Int GetChaseTarget()
     {
-        if (_pacManMover == null) return _scatterTarget;
+        if (_pacManMove == null) return _scatterTarget;
 
-        Vector2Int pacDir = _pacManMover.CurrentDir;
-        Vector2Int target = _pacManMover.CurrentTile + pacDir * LookAheadTiles;
+        Vector2Int pacDir = _pacManMove.CurrentDir;
+        Vector2Int target = _pacManMove.CurrentTile + pacDir * LookAheadTiles;
 
         // 上向きバグ再現: 上を向いているとき、さらに左へ 4 タイルずれる
         if (pacDir == DirUp)

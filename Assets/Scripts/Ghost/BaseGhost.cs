@@ -16,8 +16,6 @@ using UnityEngine;
 ///   方向優先順: 上 > 左 > 下 > 右。ユークリッド距離最小の方向を選択。
 ///   U ターン禁止（ExitHouse / Dead は許可）。赤ゾーン（上方向禁止タイル）考慮。
 ///
-/// Rigidbody 推奨設定:
-///   isKinematic = true / useGravity = false / Freeze Position Y / Freeze Rotation XYZ
 /// </remarks>
 public abstract class BaseGhost : MonoBehaviour
 {
@@ -44,10 +42,9 @@ public abstract class BaseGhost : MonoBehaviour
     [SerializeField] private float _deadSpeedRate       = 1.50f;
 
     [SerializeField] protected B_MazeGenerator _mazeGenerator;
-    [SerializeField] private   Rigidbody       _rb;
 
     [Header("参照（チェイス AI 用）")]
-    [SerializeField] protected B_PacManMover _pacManMover;
+    [SerializeField] protected B_PacManMover _pacManMove;
 
     [Header("ゴーストハウス設定")]
     [Tooltip("ハウス出入口タイル（ドア直上の通路）")]
@@ -63,6 +60,9 @@ public abstract class BaseGhost : MonoBehaviour
         new Vector2Int( 6, 13), new Vector2Int(21, 13),
         new Vector2Int( 6, 19), new Vector2Int(21, 19),
     };
+
+    [Header("デバッグ Gizmo")]
+    [SerializeField] private Color _debugGizmoColor = Color.red;
 
     // ── 移動状態 ──────────────────────────────
     private GhostMode  _currentMode;
@@ -104,7 +104,7 @@ public abstract class BaseGhost : MonoBehaviour
 
     #region 公開プロパティ
 
-    /// <summary>現在のタイル座標。B_GameManager のゴースト衝突判定に使用します。</summary>
+    /// <summary>現在のタイル座標。ゴーストハウス退出判定・チェイスターゲット計算に使用します。</summary>
     public Vector2Int CurrentTile => _currentTile;
 
     /// <summary>現在の行動モード。</summary>
@@ -124,7 +124,7 @@ public abstract class BaseGhost : MonoBehaviour
 
     // ── 読み取り専用 ──────────────────────────
     internal B_MazeGenerator InternalMazeGen      => _mazeGenerator;
-    internal B_PacManMover   InternalPacMan        => _pacManMover;
+    internal B_PacManMover   InternalPacMan        => _pacManMove;
     internal Vector2Int      InternalHouseEntrance => _houseEntranceTile;
     /// <summary>ハウス内部の中央タイル。Dead ゴーストの帰還先・ExitHouse の出発点として使用。</summary>
     internal Vector2Int      InternalHouseCenter   => _houseCenterTile;
@@ -154,6 +154,24 @@ public abstract class BaseGhost : MonoBehaviour
     internal float InternalTunnelSpeedRate    => _tunnelSpeedRate;
     internal float InternalFrightenedRate     => _frightenedSpeedRate;
     internal float InternalDeadRate           => _deadSpeedRate;
+
+    // ── デバッグ用アクセサ ────────────────────
+
+    /// <summary>
+    /// デバッグ表示用: AI が現在目指している最終ターゲットタイルを返します。
+    /// House / Frightened モードは固定ターゲットがないため現在タイルを返します。
+    /// </summary>
+    internal Vector2Int InternalDebugAiGoal => _currentMode switch
+    {
+        GhostMode.Scatter    => GetScatterTarget(),
+        GhostMode.Chase      => GetChaseTarget(),
+        GhostMode.Dead       => _houseCenterTile,
+        GhostMode.ExitHouse  => _houseEntranceTile,
+        _                    => _currentTile,   // House / Frightened
+    };
+
+    /// <summary>デバッグ表示用: 現在フレームの移動先タイル（1 ステップ先）。</summary>
+    internal Vector2Int InternalDebugNextTile => _targetTile;
 
     // ── パスファインディングヘルパー ────────────
 
@@ -218,7 +236,6 @@ public abstract class BaseGhost : MonoBehaviour
         _modeBeforeFrightened = GhostMode.Scatter;
 
         Vector3 spawnWorld = _mazeGenerator.TileToWorld(spawnTile);
-        _rb.position       = spawnWorld;
         transform.position = spawnWorld;
 
         InternalTransitionToState(initialMode);
@@ -305,9 +322,6 @@ public abstract class BaseGhost : MonoBehaviour
 
     private void Awake()
     {
-        if (_rb == null) _rb = GetComponent<Rigidbody>();
-        if (_rb == null)
-            Debug.LogError($"[{GetType().Name}] Rigidbody が見つかりません。");
         if (_mazeGenerator == null)
             Debug.LogError($"[{GetType().Name}] _mazeGenerator がアタッチされていません。");
 
@@ -319,7 +333,7 @@ public abstract class BaseGhost : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (_mazeGenerator == null || _rb == null) return;
+        if (_mazeGenerator == null) return;
         if (_currentMode == GhostMode.House) return;
         MoveStep();
     }
@@ -331,15 +345,15 @@ public abstract class BaseGhost : MonoBehaviour
     private void MoveStep()
     {
         Vector3 targetWorld = _mazeGenerator.TileToWorld(_targetTile);
-        Vector3 flatPos     = new Vector3(_rb.position.x, 0f, _rb.position.z);
+        Vector3 flatPos     = new Vector3(transform.position.x, 0f, transform.position.z);
         float   speed       = _baseSpeed * _state.GetSpeedRate(this);
         float   step        = speed * Time.fixedDeltaTime;
         float   dist        = Vector3.Distance(flatPos, targetWorld);
 
         if (dist <= step)
         {
-            _rb.MovePosition(targetWorld);
-            _currentTile = _targetTile;
+            transform.position = targetWorld;
+            _currentTile       = _targetTile;
 
             HandleTunnelWarp();
             _state.OnTileReached(this); // 自動モード遷移（ExitHouse→Scatter, Dead→House）
@@ -349,8 +363,8 @@ public abstract class BaseGhost : MonoBehaviour
         }
         else
         {
-            Vector3 moveDir = (targetWorld - _rb.position).normalized;
-            _rb.MovePosition(_rb.position + moveDir * step);
+            Vector3 moveDir = (targetWorld - transform.position).normalized;
+            transform.position += moveDir * step;
         }
     }
 
@@ -359,6 +373,7 @@ public abstract class BaseGhost : MonoBehaviour
     {
         Vector2Int newDir = _state.DecideNextDirection(this, _currentTile, _currentDir);
         _currentDir = newDir;
+        UpdateFacingDir();
 
         Vector2Int next = _currentTile + _currentDir;
 
@@ -477,6 +492,7 @@ public abstract class BaseGhost : MonoBehaviour
     private void ReverseDirection()
     {
         _currentDir = -_currentDir;
+        UpdateFacingDir();
         Vector2Int reversed = _currentTile + _currentDir;
 
         if (reversed.x >= 0 && reversed.x < SO_MazeData.Cols &&
@@ -493,17 +509,49 @@ public abstract class BaseGhost : MonoBehaviour
         {
             _currentTile       = new Vector2Int(SO_MazeData.Cols - 1, _currentTile.y);
             _targetTile        = _currentTile;
-            _rb.position       = _mazeGenerator.TileToWorld(_currentTile);
-            transform.position = _rb.position;
+            transform.position = _mazeGenerator.TileToWorld(_currentTile);
         }
         else if (_currentTile.x >= SO_MazeData.Cols)
         {
             _currentTile       = new Vector2Int(0, _currentTile.y);
             _targetTile        = _currentTile;
-            _rb.position       = _mazeGenerator.TileToWorld(_currentTile);
-            transform.position = _rb.position;
+            transform.position = _mazeGenerator.TileToWorld(_currentTile);
         }
     }
+
+    /// <summary>
+    /// _currentDir に応じて transform.rotation を更新します。
+    /// </summary>
+    private void UpdateFacingDir()
+    {
+        if (_currentDir == Vector2Int.zero) return;
+        transform.rotation = Quaternion.LookRotation(
+            new Vector3(_currentDir.x, 0f, _currentDir.y));
+    }
+
+#if UNITY_EDITOR
+    /// <summary>
+    /// Scene ビューに AI ターゲットへの線と次移動タイルのマーカーを描画します（エディタ専用）。
+    /// 各ゴーストの Inspector で _debugGizmoColor を設定してください。
+    /// </summary>
+    private void OnDrawGizmos()
+    {
+        if (!Application.isPlaying || _mazeGenerator == null) return;
+
+        Vector3 origin   = transform.position;
+        Vector3 aiGoal   = _mazeGenerator.TileToWorld(InternalDebugAiGoal);
+        Vector3 nextTile = _mazeGenerator.TileToWorld(InternalDebugNextTile);
+
+        // AI ターゲットへの線（不透明）
+        Gizmos.color = _debugGizmoColor;
+        Gizmos.DrawLine(origin, aiGoal);
+        Gizmos.DrawWireCube(aiGoal, new Vector3(0.8f, 0.05f, 0.8f));
+
+        // 次移動タイル（半透明の小球）
+        Gizmos.color = new Color(_debugGizmoColor.r, _debugGizmoColor.g, _debugGizmoColor.b, 0.35f);
+        Gizmos.DrawWireSphere(nextTile, 0.22f);
+    }
+#endif
 
     #endregion
 }

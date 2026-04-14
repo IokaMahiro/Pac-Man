@@ -13,9 +13,9 @@ GameObject:
   - component: {fileID: 1305514460968854427}
   - component: {fileID: -7545402982651812238}
   - component: {fileID: 5333377489742669178}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: P_Energizer
-  m_TagString: Untagged
+  m_TagString: Energizer
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

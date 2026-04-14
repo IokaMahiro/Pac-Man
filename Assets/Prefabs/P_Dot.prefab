@@ -13,9 +13,9 @@ GameObject:
   - component: {fileID: 8090349675937600686}
   - component: {fileID: 8948816965649631710}
   - component: {fileID: 1498470436695734384}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: P_Dot
-  m_TagString: Untagged
+  m_TagString: Dot
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

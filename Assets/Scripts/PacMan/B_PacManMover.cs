@@ -4,22 +4,25 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// パックマンのグリッド整合移動を制御するビヘイビア。
-/// Rigidbody.MovePosition() を用い、タイル中心を経由して移動する。
+/// transform.position を直接代入してタイル中心を経由して移動する。
 /// </summary>
 /// <remarks>
 /// 移動ロジック概要:
 ///   1. Update() で入力を _bufferedDir に保存（プリターン対応）。
-///   2. FixedUpdate() でタイル中心へ向かって Rigidbody.MovePosition() で移動。
+///   2. FixedUpdate() でタイル中心へ向かって transform.position で移動。
 ///   3. タイル中心到達時:
-///      a. _bufferedDir の方向が通行可能 → 方向確定・次タイルへ
+///      a. _bufferedDir の方向が通行可能 → 方向確定・transform.rotation 更新・次タイルへ
 ///      b. 不可なら _currentDir を継続
 ///      c. 両方不可 → 停止
-///   4. ドット・エナジャイザー取得はタイル中心到達時のタイル座標チェックで判定。
-///      物理トリガーは使用しない。
+///   4. ドット・エナジャイザー取得は OnTriggerEnter（物理トリガー）で検出。
+///      タグ "Dot" / "Energizer" で種別を判別する。
+///      ゴーストとの衝突も OnTriggerEnter で検出し、OnGhostHit イベントを発火する。
 ///
-/// Rigidbody 推奨設定:
-///   isKinematic = true / useGravity = false
-///   Constraints: Freeze Y Position, Freeze Rotation XYZ
+/// Prefab / Layer 要件:
+///   PacMan        … SphereCollider(IsTrigger=ON) / Rigidbody(isKinematic=ON, 移動には不使用)
+///   Dot Prefab    … SphereCollider(IsTrigger=ON, Radius≈0.05) / Tag: Dot
+///   Energizer     … SphereCollider(IsTrigger=ON, Radius≈0.10) / Tag: Energizer
+///   Ghost Prefab  … SphereCollider(IsTrigger=ON)
 /// </remarks>
 public class B_PacManMover : MonoBehaviour
 {
@@ -32,7 +35,6 @@ public class B_PacManMover : MonoBehaviour
     [SerializeField, Range(0f, 2f)] private float _speedRate = 0.80f;
 
     [SerializeField] private B_MazeGenerator _mazeGenerator;
-    [SerializeField] private Rigidbody       _rb;
 
     // タイル座標・移動状態
     private Vector2Int _currentTile;   // パックマンが現在いるタイル
@@ -43,12 +45,13 @@ public class B_PacManMover : MonoBehaviour
     // ドット・エナジャイザー食べ後の停止フレーム残数
     private int _stopFramesRemaining;
 
-    /// <summary>
-    /// ドット・エナジャイザーを食べたときに発火するイベント。
-    /// 引数 isEnergizer が true のときエナジャイザー取得。
-    /// B_DotManager（Step 3）でこのイベントを購読する。
-    /// </summary>
+    // タグ定数（Inspector の Tag 設定と一致させること）
+    private const string TagDot       = "Dot";
+    private const string TagEnergizer = "Energizer";
+
     public event Action<bool> OnDotEaten;
+
+    public event Action<BaseGhost> OnGhostHit;
 
     #endregion
 
@@ -67,9 +70,7 @@ public class B_PacManMover : MonoBehaviour
         _bufferedDir         = Vector2Int.zero;
         _stopFramesRemaining = 0;
 
-        Vector3 spawnWorld     = _mazeGenerator.TileToWorld(spawnTile);
-        _rb.position           = spawnWorld;
-        transform.position     = spawnWorld;
+        transform.position = _mazeGenerator.TileToWorld(spawnTile);
     }
 
     /// <summary>
@@ -83,7 +84,7 @@ public class B_PacManMover : MonoBehaviour
         _speedRate = rate;
     }
 
-    /// <summary>現在のタイル座標を返します。ゴースト衝突判定などに使用します。</summary>
+    /// <summary>現在のタイル座標を返します。</summary>
     public Vector2Int CurrentTile => _currentTile;
 
     /// <summary>
@@ -98,12 +99,6 @@ public class B_PacManMover : MonoBehaviour
 
     private void Awake()
     {
-        if (_rb == null) _rb = GetComponent<Rigidbody>();
-        if (_rb == null)
-        {
-            Debug.LogError("[B_PacManMover] Rigidbody が見つかりません。");
-            return;
-        }
         if (_mazeGenerator == null)
         {
             Debug.LogError("[B_PacManMover] _mazeGenerator がアタッチされていません。");
@@ -149,8 +144,9 @@ public class B_PacManMover : MonoBehaviour
     private void MoveStep()
     {
         Vector3 targetWorld = _mazeGenerator.TileToWorld(_targetTile);
+
         // Y 軸を無視した平面上の距離で判定
-        Vector3 flatPos = new Vector3(_rb.position.x, 0f, _rb.position.z);
+        Vector3 flatPos = new Vector3(transform.position.x, 0f, transform.position.z);
         float   dist    = Vector3.Distance(flatPos, targetWorld);
         float   step    = _baseSpeed * _speedRate * Time.fixedDeltaTime;
 
@@ -164,11 +160,11 @@ public class B_PacManMover : MonoBehaviour
             // （停止中の再呼び出しで二重処理しないようにする）
             if (_currentTile != _targetTile)
             {
-                _rb.MovePosition(targetWorld);
-                _currentTile = _targetTile;
+                transform.position = targetWorld;
+                _currentTile       = _targetTile;
 
-                HandleTunnelWarp();      // トンネル到達時のワープ
-                CheckDotAtCurrentTile(); // ドット・エナジャイザーの取得判定
+                HandleTunnelWarp(); // トンネル到達時のワープ
+                // ドット取得は OnTriggerEnter（物理トリガー）で処理する
             }
 
             ChooseNextTile(); // 毎フレーム呼ぶことで、停止中の入力にも即応答
@@ -176,8 +172,8 @@ public class B_PacManMover : MonoBehaviour
         else
         {
             // ──── タイル中心へ向けて移動 ────
-            Vector3 moveDir = (targetWorld - _rb.position).normalized;
-            _rb.MovePosition(_rb.position + moveDir * step);
+            Vector3 moveDir = (targetWorld - transform.position).normalized;
+            transform.position += moveDir * step;
         }
     }
 
@@ -191,36 +187,44 @@ public class B_PacManMover : MonoBehaviour
         {
             _currentTile       = new Vector2Int(SO_MazeData.Cols - 1, _currentTile.y);
             _targetTile        = _currentTile;
-            _rb.position       = _mazeGenerator.TileToWorld(_currentTile);
-            transform.position = _rb.position;
+            transform.position = _mazeGenerator.TileToWorld(_currentTile);
         }
         else if (_currentTile.x >= SO_MazeData.Cols)
         {
             _currentTile       = new Vector2Int(0, _currentTile.y);
             _targetTile        = _currentTile;
-            _rb.position       = _mazeGenerator.TileToWorld(_currentTile);
-            transform.position = _rb.position;
+            transform.position = _mazeGenerator.TileToWorld(_currentTile);
         }
     }
 
     /// <summary>
-    /// 現在タイルのドット・エナジャイザーを取得します。
-    /// タイルオブジェクトを削除し、停止フレームと OnDotEaten イベントを発火します。
+    /// コライダーとの接触を物理トリガーで検出します。
+    /// ドット / エナジャイザー / ゴーストを Tag で判別して処理します。
     /// </summary>
-    private void CheckDotAtCurrentTile()
+    /// <remarks>
+    /// OnTriggerEnter は MonoBehaviour.enabled=false でも物理エンジンから呼ばれるため、
+    /// 演出中（Ready/PacManDead/LevelClear）の誤検出を防ぐために先頭で enabled チェックを行う。
+    /// </remarks>
+    private void OnTriggerEnter(Collider other)
     {
-        // GetTileObject が null なら食べ済み or 元々ドットなし
-        if (_mazeGenerator.GetTileObject(_currentTile.x, _currentTile.y) == null) return;
+        if (!enabled) return;
 
-        SO_MazeData.TileType tileType = _mazeGenerator.MazeData.GetTile(_currentTile);
-        if (tileType != SO_MazeData.TileType.Dot && tileType != SO_MazeData.TileType.Energizer) return;
+        // ── ドット / エナジャイザー ──────────────────────
+        // Energizer を先に評価することで、Dot 時の CompareTag 呼び出しを最小化する。
+        bool isEnergizer = other.CompareTag(TagEnergizer);
+        if (isEnergizer || other.CompareTag(TagDot))
+        {
+            _stopFramesRemaining = isEnergizer ? 3 : 1;
+            Vector2Int tile = _mazeGenerator.WorldToTile(other.transform.position);
+            _mazeGenerator.RemoveTileObject(tile);
+            OnDotEaten?.Invoke(isEnergizer);
+            return;
+        }
 
-        bool isEnergizer     = tileType == SO_MazeData.TileType.Energizer;
-        _stopFramesRemaining = isEnergizer ? 3 : 1;
-
-        // キャッシュを null にクリアしてから Destroy（二重取得を防ぐ）
-        _mazeGenerator.RemoveTileObject(_currentTile.x, _currentTile.y);
-        OnDotEaten?.Invoke(isEnergizer);
+        // ── ゴースト ────────────────────────────────────
+        BaseGhost ghost = other.GetComponent<BaseGhost>();
+        if (ghost != null)
+            OnGhostHit?.Invoke(ghost);
     }
 
     /// <summary>
@@ -234,6 +238,7 @@ public class B_PacManMover : MonoBehaviour
         if (_bufferedDir != Vector2Int.zero && TrySetTargetTile(_bufferedDir))
         {
             _currentDir = _bufferedDir;
+            UpdateFacingDir();
             return;
         }
         // 現在方向を継続
@@ -268,6 +273,17 @@ public class B_PacManMover : MonoBehaviour
 
         _targetTile = next;
         return true;
+    }
+
+    /// <summary>
+    /// _currentDir に応じて transform.rotation を更新します。
+    /// タイル単位の方向ベクトルをワールドの forward に変換します。
+    /// </summary>
+    private void UpdateFacingDir()
+    {
+        if (_currentDir == Vector2Int.zero) return;
+        transform.rotation = Quaternion.LookRotation(
+            new Vector3(_currentDir.x, 0f, _currentDir.y));
     }
 
     #endregion

@@ -42,12 +42,12 @@ public class B_InkyAI : BaseGhost
     /// </summary>
     protected override Vector2Int GetChaseTarget()
     {
-        if (_pacManMover == null || _blinky == null) return _scatterTarget;
+        if (_pacManMove == null || _blinky == null) return _scatterTarget;
 
-        Vector2Int pacDir  = _pacManMover.CurrentDir;
+        Vector2Int pacDir  = _pacManMove.CurrentDir;
 
         // ① 中間点: パックマン進行方向 2 タイル先
-        Vector2Int pivot = _pacManMover.CurrentTile + pacDir * PivotTiles;
+        Vector2Int pivot = _pacManMove.CurrentTile + pacDir * PivotTiles;
 
         // 上向きバグ再現: 上を向いているとき、さらに左へ 2 タイルずれる
         if (pacDir == DirUp)

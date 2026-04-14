@@ -23,15 +23,13 @@ public class B_ClydeAI : BaseGhost
     /// </summary>
     protected override Vector2Int GetChaseTarget()
     {
-        if (_pacManMover == null) return _scatterTarget;
+        if (_pacManMove == null) return _scatterTarget;
 
-        Vector2Int pacTile = _pacManMover.CurrentTile;
+        Vector2Int pacTile = _pacManMove.CurrentTile;
         float dx = CurrentTile.x - pacTile.x;
         float dz = CurrentTile.y - pacTile.y;
 
-        return (dx * dx + dz * dz) >= FleeDistance * FleeDistance
-            ? pacTile
-            : _scatterTarget;
+        return (dx * dx + dz * dz) >= FleeDistance * FleeDistance ? pacTile : _scatterTarget;
     }
 
     #endregion

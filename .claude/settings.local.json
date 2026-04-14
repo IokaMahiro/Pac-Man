@@ -12,7 +12,11 @@
       "Bash(echo \"PID=$!\")",
       "Bash(tasklist)",
       "Bash('C:/Program Files/Unity/Hub/Editor/6000.4.2f1/Editor/Unity.exe' -batchmode -nographics -projectPath C:/Users/mahir/UnityProject/Pac-Man_02 -executeMethod CompileChecker.CheckAndQuit -logFile C:/Users/mahir/UnityProject/compile_test2.log)",
-      "Bash(echo \"Exit: $?\")"
+      "Bash(echo \"Exit: $?\")",
+      "Bash(uloop compile:*)",
+      "Bash(uloop control-play-mode:*)",
+      "Bash(uloop screenshot:*)",
+      "Bash(uloop get-logs:*)"
     ]
   }
 }
