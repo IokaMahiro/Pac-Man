@@ -151,18 +151,35 @@ MonoBehaviour:
   _mazeGenerator: {fileID: 161537086}
   _pacManMover: {fileID: 385840656}
   _dotManager: {fileID: 1723001368}
-  _allGhosts:
-  - {fileID: 6686340048949318028}
-  - {fileID: 8479239315224342846}
-  - {fileID: 3697881568173903788}
-  - {fileID: 1437446226772757263}
+  _ghostHouseManager: {fileID: 841399670}
+  _blinky: {fileID: 4926696058020755116}
+  _pinky: {fileID: 7299857068555273855}
+  _inky: {fileID: 3697881568173903789}
+  _clyde: {fileID: 1437446226772757263}
   _initialLives: 3
   _frightenedDuration: 6
   _deathPauseDuration: 1
-  _gameClearPause: 2
+  _levelClearPause: 2
   _readyDuration: 2
   _pacManNormalRate: 0.8
   _pacManFrightenedRate: 0.9
+  _scatterChasePhases:
+  - Mode: 2
+    Duration: 7
+  - Mode: 3
+    Duration: 20
+  - Mode: 2
+    Duration: 7
+  - Mode: 3
+    Duration: 20
+  - Mode: 2
+    Duration: 5
+  - Mode: 3
+    Duration: 20
+  - Mode: 2
+    Duration: 5
+  - Mode: 3
+    Duration: -1
 --- !u!4 &15578422
 Transform:
   m_ObjectHideFlags: 0
@@ -207,7 +224,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e513bbf206ba164fb9a65058fad2480, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::B_MazeGenerator
-  _mazeData: {fileID: 11400000, guid: 50ce2bc6657b37444856a1c4ce02684b, type: 2}
+  _mazeData: {fileID: 11400000, guid: 0e8bc599d479c1c4fbd95969174fca08, type: 2}
   _wallPrefab: {fileID: 5264695090491303179, guid: 9dee9fdcd48b52b4b9860577a54ccce5, type: 3}
   _dotPrefab: {fileID: 503342434337278829, guid: dad5724bfd7ead94786b407a745858fe, type: 3}
   _energizerPrefab: {fileID: 5598963740707241639, guid: 0222a38283f463c40a54089a84c82f19, type: 3}
@@ -552,6 +569,57 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &841399669
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 841399671}
+  - component: {fileID: 841399670}
+  m_Layer: 0
+  m_Name: GhostHouseManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &841399670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841399669}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 841036141a779214f9830f7baa20fde3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::B_GhostHouseManager
+  _pacManMover: {fileID: 385840656}
+  _pinky: {fileID: 7299857068555273855}
+  _inky: {fileID: 3697881568173903789}
+  _clyde: {fileID: 1437446226772757263}
+  _personalThresholds: 000000001e0000003c000000
+  _globalThresholds: 070000001100000020000000
+  _inactivityTimeout: 4
+--- !u!4 &841399671
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 841399669}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1723001367
 GameObject:
   m_ObjectHideFlags: 0
@@ -583,6 +651,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::B_DotManager
   _mazeGenerator: {fileID: 161537086}
   _pacManMover: {fileID: 385840656}
+  _elroy1Threshold: 20
+  _elroy2Threshold: 10
 --- !u!4 &1723001369
 Transform:
   m_ObjectHideFlags: 0
@@ -621,10 +691,6 @@ PrefabInstance:
     - target: {fileID: 7829956621412248277, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
       propertyPath: m_Name
       value: P_Clyde
-      objectReference: {fileID: 0}
-    - target: {fileID: 7829956621412248277, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8405104857285545903, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
       propertyPath: m_LocalPosition.x
@@ -666,42 +732,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 3681177848854953122, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 7829956621412248277, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1437446226772757263}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
---- !u!1 &1437446226772757262 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 7829956621412248277, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
+--- !u!114 &1437446226772757263 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 3681177848854953122, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
   m_PrefabInstance: {fileID: 1437446226772757261}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1437446226772757263
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1437446226772757262}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d89b5ec4bc2cd947aa664f8889dc87d, type: 3}
+  m_Script: {fileID: 11500000, guid: f15e9913d65f5374db858d5793ef2261, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GhostMover
-  _chaseType: 0
-  _cornerTile: {x: 0, y: 26}
-  _mazeGenerator: {fileID: 161537086}
-  _pacManMover: {fileID: 385840656}
-  _baseSpeed: 9.47
-  _normalRate: 0.75
-  _frightenedRate: 0.5
-  _spawnTile: {x: 15, y: 13}
-  _startsInsideHouse: 1
-  _respawnDelay: 3
+  m_EditorClassIdentifier: Assembly-CSharp::B_ClydeAI
 --- !u!1001 &3697881568173903786
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -757,7 +803,7 @@ PrefabInstance:
     - target: {fileID: 4389374156567768709, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
       propertyPath: _blinky
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 4926696058020755116}
     - target: {fileID: 4389374156567768709, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
       propertyPath: _pacManMove
       value: 
@@ -770,46 +816,22 @@ PrefabInstance:
       propertyPath: m_Name
       value: P_Inky
       objectReference: {fileID: 0}
-    - target: {fileID: 4561568674375339678, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 4389374156567768709, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 4561568674375339678, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 3697881568173903788}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
---- !u!1 &3697881568173903787 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 4561568674375339678, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
+--- !u!114 &3697881568173903789 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4389374156567768709, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
   m_PrefabInstance: {fileID: 3697881568173903786}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &3697881568173903788
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3697881568173903787}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d89b5ec4bc2cd947aa664f8889dc87d, type: 3}
+  m_Script: {fileID: 11500000, guid: 2080400ffce1b4e48b55ac74b872d54e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GhostMover
-  _chaseType: 0
-  _cornerTile: {x: 0, y: 0}
-  _mazeGenerator: {fileID: 161537086}
-  _pacManMover: {fileID: 385840656}
-  _baseSpeed: 9.47
-  _normalRate: 0.75
-  _frightenedRate: 0.5
-  _spawnTile: {x: 11, y: 13}
-  _startsInsideHouse: 1
-  _respawnDelay: 3
+  m_EditorClassIdentifier: Assembly-CSharp::B_InkyAI
 --- !u!1001 &4634213661938491785
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -871,6 +893,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8f1a82d4fd732db4abf7a9a96b31ba92, type: 3}
+--- !u!114 &4926696058020755116 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 113387104654984349, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
+  m_PrefabInstance: {fileID: 6686340048949318026}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc2eade4eda5d314daa4d9cfe18628ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::B_BlinkyAI
 --- !u!1001 &6686340048949318026
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -939,42 +972,22 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
-    m_RemovedComponents:
-    - {fileID: 113387104654984349, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 650479568142434484, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 6686340048949318028}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
---- !u!1 &6686340048949318027 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 650479568142434484, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
-  m_PrefabInstance: {fileID: 6686340048949318026}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &6686340048949318028
+--- !u!114 &7299857068555273855 stripped
 MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
+  m_CorrespondingSourceObject: {fileID: 7381883088092781141, guid: bb024e8dc37895e42970a98984defd48, type: 3}
+  m_PrefabInstance: {fileID: 8479239315224342844}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6686340048949318027}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d89b5ec4bc2cd947aa664f8889dc87d, type: 3}
+  m_Script: {fileID: 11500000, guid: d783e90126f4a2a4b8a2e2d66a67193e, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GhostMover
-  _chaseType: 0
-  _cornerTile: {x: 13, y: 11}
-  _mazeGenerator: {fileID: 161537086}
-  _pacManMover: {fileID: 385840656}
-  _baseSpeed: 9.47
-  _normalRate: 0.75
-  _frightenedRate: 0.5
-  _spawnTile: {x: 13, y: 11}
-  _startsInsideHouse: 0
-  _respawnDelay: 3
+  m_EditorClassIdentifier: Assembly-CSharp::B_PinkyAI
 --- !u!1001 &8479239315224342844
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1031,10 +1044,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: P_Pinky
       objectReference: {fileID: 0}
-    - target: {fileID: 7109774472749869185, guid: bb024e8dc37895e42970a98984defd48, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 7381883088092781141, guid: bb024e8dc37895e42970a98984defd48, type: 3}
       propertyPath: _pacManMove
       value: 
@@ -1043,42 +1052,11 @@ PrefabInstance:
       propertyPath: _mazeGenerator
       value: 
       objectReference: {fileID: 161537086}
-    m_RemovedComponents:
-    - {fileID: 7381883088092781141, guid: bb024e8dc37895e42970a98984defd48, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 7109774472749869185, guid: bb024e8dc37895e42970a98984defd48, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 8479239315224342846}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: bb024e8dc37895e42970a98984defd48, type: 3}
---- !u!1 &8479239315224342845 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 7109774472749869185, guid: bb024e8dc37895e42970a98984defd48, type: 3}
-  m_PrefabInstance: {fileID: 8479239315224342844}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &8479239315224342846
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8479239315224342845}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1d89b5ec4bc2cd947aa664f8889dc87d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GhostMover
-  _chaseType: 0
-  _cornerTile: {x: 0, y: 0}
-  _mazeGenerator: {fileID: 161537086}
-  _pacManMover: {fileID: 385840656}
-  _baseSpeed: 9.47
-  _normalRate: 0.75
-  _frightenedRate: 0.5
-  _spawnTile: {x: 13, y: 13}
-  _startsInsideHouse: 1
-  _respawnDelay: 3
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1093,4 +1071,5 @@ SceneRoots:
   - {fileID: 3697881568173903786}
   - {fileID: 1437446226772757261}
   - {fileID: 1723001369}
+  - {fileID: 841399671}
   - {fileID: 15578422}

@@ -51,7 +51,7 @@ public class B_PacManMover : MonoBehaviour
 
     public event Action<bool> OnDotEaten;
 
-    public event Action<BaseGhost> OnGhostHit;
+    public event Action<GhostMover> OnGhostHit;
 
     #endregion
 
@@ -222,7 +222,7 @@ public class B_PacManMover : MonoBehaviour
         }
 
         // ── ゴースト ────────────────────────────────────
-        BaseGhost ghost = other.GetComponent<BaseGhost>();
+        GhostMover ghost = other.GetComponent<GhostMover>();
         if (ghost != null)
             OnGhostHit?.Invoke(ghost);
     }

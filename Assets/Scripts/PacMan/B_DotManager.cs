@@ -10,7 +10,6 @@ using UnityEngine;
 ///   OnEnergizerEaten   → B_GameManager   (Step 7) ゴーストをフライテンドモードへ
 ///   OnLevelClear       → B_GameManager   (Step 7) レベルクリア処理
 ///   OnBonusFruitSpawn  → B_BonusFruit    (Step 9) ボーナスシンボル出現
-///   OnElroyThreshold   → B_BlinkyAI      (Step 5) エルロイ加速
 /// </remarks>
 public class B_DotManager : MonoBehaviour
 {
@@ -18,13 +17,6 @@ public class B_DotManager : MonoBehaviour
 
     [SerializeField] private B_MazeGenerator _mazeGenerator;
     [SerializeField] private B_PacManMover   _pacManMover;
-
-    [Header("エルロイしきい値（残ドット数）※ Level 1 デフォルト値")]
-    [Tooltip("残ドットがこの値以下になるとエルロー1（第1加速）が発動します。")]
-    [SerializeField] private int _elroy1Threshold = 20;
-
-    [Tooltip("残ドットがこの値以下になるとエルロー2（第2加速）が発動します。")]
-    [SerializeField] private int _elroy2Threshold = 10;
 
     // ドットカウンター
     private int _totalDots;
@@ -34,10 +26,6 @@ public class B_DotManager : MonoBehaviour
     // フルーツ出現しきい値インデックス（70 個目・170 個目）
     private int  _nextFruitIndex;
     private static readonly int[] FruitThresholds = { 70, 170 };
-
-    // エルロイ発火済みフラグ（同一レベル内で重複発火しないよう管理）
-    private bool _elroy1Fired;
-    private bool _elroy2Fired;
 
     // 各タイル種別の得点
     private const int DotScore       = 10;
@@ -60,12 +48,6 @@ public class B_DotManager : MonoBehaviour
     /// </summary>
     public event Action OnBonusFruitSpawn;
 
-    /// <summary>
-    /// ブリンキーのエルロイしきい値到達時に発火。
-    /// 引数: 1 = Elroy1（第1加速）/ 2 = Elroy2（第2加速）。
-    /// </summary>
-    public event Action<int> OnElroyThreshold;
-
     #endregion
 
     #region 公開メソッド
@@ -83,8 +65,6 @@ public class B_DotManager : MonoBehaviour
         _remainingDots  = _totalDots;
         _eatenDots      = 0;
         _nextFruitIndex = 0;
-        _elroy1Fired    = false;
-        _elroy2Fired    = false;
     }
 
     #endregion
@@ -162,19 +142,7 @@ public class B_DotManager : MonoBehaviour
             OnBonusFruitSpawn?.Invoke();
         }
 
-        // ④ エルロイしきい値チェック（Elroy2 を優先判定）
-        if (!_elroy2Fired && _remainingDots <= _elroy2Threshold)
-        {
-            _elroy2Fired = true;
-            OnElroyThreshold?.Invoke(2);
-        }
-        else if (!_elroy1Fired && _remainingDots <= _elroy1Threshold)
-        {
-            _elroy1Fired = true;
-            OnElroyThreshold?.Invoke(1);
-        }
-
-        // ⑤ レベルクリア判定
+        // ④ レベルクリア判定
         if (_remainingDots <= 0)
             OnLevelClear?.Invoke();
     }

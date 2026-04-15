@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0e8436f407b1fde4dac6a7c484346e4f, type: 3}
-  m_Name: SO_MazeData
+  m_Name: SO_MazeData 1
   m_EditorClassIdentifier: Assembly-CSharp::SO_MazeData
   _rows:
   - '############################'
@@ -26,9 +26,9 @@ MonoBehaviour:
   - '######.#####.##.#####.######'
   - '######.##          ##.######'
   - '######.## ###--### ##.######'
-  - T     .   #      #   .     T
-  - '######.## #      # ##.######'
-  - '######.## ##    ## ##.######'
+  - T     .   #GGGGGG#   .     T
+  - '######.## #GGGGGG# ##.######'
+  - '######.## ######## ##.######'
   - '######.##          ##.######'
   - '#............##............#'
   - '#.####.#####.##.#####.####.#'
@@ -40,7 +40,7 @@ MonoBehaviour:
   - '#.##########.##.##########.#'
   - '#..........................#'
   - '############################'
-  _pacManSpawn: {x: 13, y: 19}
+  _pacManSpawn: {x: 1, y: 25}
   _blinkySpawn: {x: 13, y: 11}
   _pinkySpawn: {x: 13, y: 13}
   _inkySpawn: {x: 11, y: 13}
