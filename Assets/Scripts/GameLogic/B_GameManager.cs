@@ -29,9 +29,11 @@ public class B_GameManager : MonoBehaviour
     }
 
     [Header("参照")]
-    [SerializeField] private B_MazeGenerator _mazeGenerator;
-    [SerializeField] private B_PacManMover   _pacManMover;
-    [SerializeField] private B_DotManager    _dotManager;
+    [SerializeField] private B_MazeGenerator  _mazeGenerator;
+    [SerializeField] private B_PacManMover    _pacManMover;
+    [SerializeField] private B_DotManager     _dotManager;
+    [SerializeField] private B_ScoreManager   _scoreManager;
+    [SerializeField] private B_MissionManager _missionManager;
 
     [Tooltip("4 体のゴーストを登録してください")]
     [SerializeField] private GhostMover[] _allGhosts;
@@ -81,12 +83,6 @@ public class B_GameManager : MonoBehaviour
 
     private void Awake()
     {
-        if (_mazeGenerator == null) Debug.LogError("[B_GameManager] _mazeGenerator が未設定です。");
-        if (_pacManMover   == null) Debug.LogError("[B_GameManager] _pacManMover が未設定です。");
-        if (_dotManager    == null) Debug.LogError("[B_GameManager] _dotManager が未設定です。");
-        if (_allGhosts     == null || _allGhosts.Length == 0)
-            Debug.LogError("[B_GameManager] _allGhosts が未設定です。");
-
         _currentLives = _initialLives;
     }
 
@@ -135,6 +131,8 @@ public class B_GameManager : MonoBehaviour
     /// <summary>ゲームを最初から開始します。迷路・ドット・キャラクターをすべてリセットします。</summary>
     private void StartGame()
     {
+        _scoreManager?.ResetScore();
+        _missionManager?.StartMissions();
         _mazeGenerator.RegenerateTiles();
         _dotManager.Initialize();
         ResetCharacters();

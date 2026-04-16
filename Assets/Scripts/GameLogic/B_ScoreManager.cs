@@ -48,12 +48,22 @@ public class B_ScoreManager : MonoBehaviour
 
     /// <summary>
     /// スコアを 0 にリセットします。
-    /// ゲームオーバー後の再スタート時に B_GameManager から呼んでください（将来実装）。
+    /// ゲーム開始時に B_GameManager から呼んでください。
     /// </summary>
     public void ResetScore()
     {
         _currentScore = 0;
         OnScoreChanged?.Invoke(_currentScore);
+    }
+
+    /// <summary>
+    /// ミッション達成ボーナスなど外部からスコアを加算します。
+    /// B_MissionManager から呼んでください。
+    /// </summary>
+    public void AddBonus(int bonus)
+    {
+        if (bonus <= 0) return;
+        AddScore(bonus);
     }
 
     #endregion
@@ -62,9 +72,6 @@ public class B_ScoreManager : MonoBehaviour
 
     private void Awake()
     {
-        if (_dotManager  == null) Debug.LogError("[B_ScoreManager] _dotManager が未設定です。");
-        if (_gameManager == null) Debug.LogError("[B_ScoreManager] _gameManager が未設定です。");
-
         _highScore = PlayerPrefs.GetInt(HighScoreKey, 0);
     }
 
