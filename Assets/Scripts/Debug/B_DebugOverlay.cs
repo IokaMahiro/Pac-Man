@@ -67,8 +67,7 @@ public class B_DebugOverlay : MonoBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(_toggleKey))
-            _visible = !_visible;
+
     }
 
     private void OnGUI()

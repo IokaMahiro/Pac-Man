@@ -56,6 +56,10 @@ public class B_GameManager : MonoBehaviour
     private bool  _frightened;
     private float _frightenedTimer;
     private int   _ghostEatCount;
+    private bool  _frightenedWarning; // 警告点滅フェーズに入ったか
+
+    [Tooltip("フライテンド終了の何秒前から点滅警告を出すか")]
+    [SerializeField] private float _frightenedWarningTime = 2f;
 
 
     /// <summary>残機が変わったときに発火。引数: 新しい残機数。</summary>
@@ -119,6 +123,15 @@ public class B_GameManager : MonoBehaviour
         if (_frightened)
         {
             _frightenedTimer -= Time.deltaTime;
+
+            // 残り _frightenedWarningTime 秒になったら点滅警告開始
+            if (!_frightenedWarning && _frightenedTimer <= _frightenedWarningTime)
+            {
+                _frightenedWarning = true;
+                foreach (GhostMover ghost in _allGhosts)
+                    ghost.SetFrightenedWarning();
+            }
+
             if (_frightenedTimer <= 0f)
                 EndFrightened();
         }
@@ -157,9 +170,10 @@ public class B_GameManager : MonoBehaviour
 
     private void ResetFrightened()
     {
-        _frightened      = false;
-        _frightenedTimer = 0f;
-        _ghostEatCount   = 0;
+        _frightened        = false;
+        _frightenedTimer   = 0f;
+        _ghostEatCount     = 0;
+        _frightenedWarning = false;
         _pacManMover.SetSpeedRate(_pacManNormalRate);
     }
 
@@ -178,16 +192,17 @@ public class B_GameManager : MonoBehaviour
 
     private void HandleEnergizerEaten()
     {
-        _frightenedTimer = _frightenedDuration;
-        _ghostEatCount   = 0;
+        _frightenedTimer   = _frightenedDuration;
+        _ghostEatCount     = 0;
+        _frightenedWarning = false; // 警告フェーズをリセット
 
         if (!_frightened)
-        {
-            _frightened = true;
-            foreach (GhostMover ghost in _allGhosts)
-                ghost.SetFrightened();
             _pacManMover.SetSpeedRate(_pacManFrightenedRate);
-        }
+
+        // 初回・再取得いずれも SetFrightened を呼ぶ（色と点滅を青にリセット）
+        _frightened = true;
+        foreach (GhostMover ghost in _allGhosts)
+            ghost.SetFrightened();
     }
 
     private void EndFrightened()

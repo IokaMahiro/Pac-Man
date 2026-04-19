@@ -84,6 +84,23 @@ public class GhostMover : MonoBehaviour
     private bool _isEaten;
     private float _respawnTimer;
     private bool _hasPassedDoor; // ドアを通過済みなら true（再侵入防止）
+    private Vector2Int _doorTile; // ゴーストドアのタイル座標（Initialize 時にキャッシュ）
+
+    // ── デバッグ描画 ─────────────────────────────────────
+    [Header("デバッグ描画")]
+    [SerializeField] private bool _showDebugDraw = true;
+
+    private Vector2Int _debugAiTarget; // AI が狙っているタイル（描画用キャッシュ）
+
+    // ── マテリアル / ビジュアル ──────────────────────────
+    private MaterialPropertyBlock _propBlock;
+    private bool _isFlashing; // 点滅フラグ（フライテンド警告フェーズ）
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+
+    private static readonly Color FrightenedColor = new(0.10f, 0.20f, 1.00f); // 青
+    private static readonly Color FlashColorA     = new(0.10f, 0.20f, 1.00f); // 青（点滅A）
+    private static readonly Color FlashColorB     = new(1.00f, 1.00f, 1.00f); // 白（点滅B）
 
     private Collider _col;
     private Renderer _rend;
@@ -118,13 +135,14 @@ public class GhostMover : MonoBehaviour
         _targetTile = _spawnTile;
         _currentDir = Vector2Int.zero;
         _hasPassedDoor = !_startsInsideHouse; // ハウス外スポーンは最初からドアを封鎖
+        CacheDoorTile();                      // ドア座標をキャッシュ
 
         transform.position = _mazeGenerator.TileToWorld(_spawnTile);
 
         if (_col != null) _col.enabled = true;
         if (_rend != null) _rend.enabled = true;
 
-        SetNextTarget(); // BFS が初期方向と向きを決定
+        SetNextTarget();
     }
 
     /// <summary>
@@ -135,15 +153,32 @@ public class GhostMover : MonoBehaviour
     {
         if (_isEaten) return;
 
-        Vector2Int reversed = -_currentDir;
-        if (_currentDir != Vector2Int.zero && IsPassable(CurrentTile + reversed))
+        // 新規フライテンドのときだけ方向反転
+        if (CurrentMode != GhostMode.Frightened)
         {
-            _currentDir = reversed;
-            _targetTile = CurrentTile + reversed;
-            UpdateFacingDir();
+            Vector2Int reversed = -_currentDir;
+            if (_currentDir != Vector2Int.zero && IsPassable(CurrentTile + reversed))
+            {
+                _currentDir = reversed;
+                _targetTile = CurrentTile + reversed;
+                UpdateFacingDir();
+            }
+            CurrentMode = GhostMode.Frightened;
         }
 
-        CurrentMode = GhostMode.Frightened;
+        // 再エナジャイザー時も含め、常に点滅を止めて青に戻す
+        _isFlashing = false;
+        SetMaterialColor(FrightenedColor);
+    }
+
+    /// <summary>
+    /// フライテンド警告フェーズ（残り数秒）を開始します。青↔白の点滅に切り替えます。
+    /// B_GameManager から呼んでください。
+    /// </summary>
+    public void SetFrightenedWarning()
+    {
+        if (_isEaten || CurrentMode != GhostMode.Frightened) return;
+        _isFlashing = true;
     }
 
     /// <summary>
@@ -154,6 +189,8 @@ public class GhostMover : MonoBehaviour
     {
         if (_isEaten || CurrentMode != GhostMode.Frightened) return;
         CurrentMode = GhostMode.Chase;
+        _isFlashing = false;
+        ResetMaterialColor();
         SetNextTarget();
     }
 
@@ -166,10 +203,12 @@ public class GhostMover : MonoBehaviour
     {
         if (_isEaten) return;
 
-        _isEaten = true;
+        _isEaten    = true;
+        _isFlashing = false;
         _respawnTimer = _respawnDelay;
+        ResetMaterialColor();
 
-        if (_col != null) _col.enabled = false;
+        if (_col  != null) _col.enabled  = false;
         if (_rend != null) _rend.enabled = false;
     }
 
@@ -179,8 +218,19 @@ public class GhostMover : MonoBehaviour
 
     private void Awake()
     {
-        _col = GetComponent<Collider>();
-        _rend = GetComponent<Renderer>();
+        _col      = GetComponent<Collider>();
+        _rend     = GetComponent<Renderer>();
+        _propBlock = new MaterialPropertyBlock();
+    }
+
+    private void Update()
+    {
+        // フライテンド警告フェーズ: 0.2 秒ごとに青↔白を交互に点滅
+        if (_isFlashing)
+        {
+            bool showBlue = ((int)(Time.time / 0.2f) % 2) == 0;
+            SetMaterialColor(showBlue ? FlashColorA : FlashColorB);
+        }
     }
 
     private void FixedUpdate()
@@ -194,6 +244,8 @@ public class GhostMover : MonoBehaviour
         }
 
         MoveStep();
+
+        if (_showDebugDraw) DrawDebugLines();
     }
 
     // 移動処理
@@ -226,7 +278,40 @@ public class GhostMover : MonoBehaviour
 
     private void SetNextTarget()
     {
-        _currentDir = CurrentMode == GhostMode.Frightened ? DecideRandDir() : BfsFirstStep(GetChaseTarget());
+        Vector2Int uTurn = -_currentDir; // Uターン禁止方向（現在の逆）
+
+        if (!_hasPassedDoor)
+        {
+            // ── ハウス内: ドアタイルへ BFS で確実に向かう ──────────
+            _currentDir    = BfsFirstStep(_doorTile);
+            _debugAiTarget = _doorTile;
+        }
+        else
+        {
+            // ── ハウス外: 通常 AI ──────────────────────────────────
+            bool useRandom = CurrentMode == GhostMode.Frightened
+                             || (_chaseType == ChaseType.Shy && !IsFarFromPacMan());
+
+            if (useRandom)
+            {
+                _currentDir    = DecideRandDir(uTurn);
+                _debugAiTarget = CurrentTile + _currentDir; // ランダム時は直近の一歩
+            }
+            else
+            {
+                Vector2Int chaseTarget = GetChaseTarget();
+                _debugAiTarget = chaseTarget;
+                _currentDir    = BfsFirstStep(chaseTarget);
+            }
+        }
+
+        // BFS が Uターン方向を返した場合、他の選択肢があれば上書き
+        if (_currentDir == uTurn)
+            _currentDir = DecideRandDir(uTurn);
+
+        // 無効方向（zero・壁）フォールバック
+        if (_currentDir == Vector2Int.zero || !IsPassable(CurrentTile + _currentDir))
+            _currentDir = DecideRandDir(uTurn);
 
         UpdateFacingDir();
 
@@ -250,11 +335,15 @@ public class GhostMover : MonoBehaviour
 
         return _chaseType switch
         {
-            ChaseType.Direct => _pacManMover.CurrentTile,
+            ChaseType.Direct    => _pacManMover.CurrentTile,
             ChaseType.LookAhead => _pacManMover.CurrentTile + _pacManMover.CurrentDir * 3,
-            ChaseType.Mirror => _pacManMover.CurrentTile * 2 - CurrentTile,
-            ChaseType.Shy => IsFarFromPacMan() ? _pacManMover.CurrentTile : _cornerTile,
-            _ => _pacManMover.CurrentTile,
+            
+            // 迷路外に出ないよう ClampToMaze でクランプする
+            ChaseType.Mirror    => ClampToMaze(_pacManMover.CurrentTile * 2 - CurrentTile),
+            
+            // Shy: 近距離時は SetNextTarget でランダム徘徊に切り替えるため常にパックマンを返す
+            ChaseType.Shy       => _pacManMover.CurrentTile,
+            _                   => _pacManMover.CurrentTile,
         };
     }
 
@@ -311,19 +400,58 @@ public class GhostMover : MonoBehaviour
         return _currentDir; // 経路なし
     }
 
-    // 弱体化時のランダム移動
-    private Vector2Int DecideRandDir()
+    /// <summary>
+    /// 通行可能な方向からランダムに一方向を選びます。
+    /// exclude に指定した方向は候補から除外します（Uターン禁止に使用）。
+    /// 候補がゼロになる場合（行き止まり）は除外を解除して再選択します。
+    /// </summary>
+    private Vector2Int DecideRandDir(Vector2Int exclude = default)
     {
         var candidates = new List<Vector2Int>(4);
         foreach (Vector2Int dir in DirPriority)
         {
+            if (dir == exclude) continue;
             if (IsPassable(CurrentTile + dir))
                 candidates.Add(dir);
         }
+
+        // 行き止まりなら Uターン禁止を解除して再選択
+        if (candidates.Count == 0)
+        {
+            foreach (Vector2Int dir in DirPriority)
+                if (IsPassable(CurrentTile + dir))
+                    candidates.Add(dir);
+        }
+
         return candidates.Count > 0
             ? candidates[Random.Range(0, candidates.Count)]
             : _currentDir;
     }
+
+    /// <summary>
+    /// 迷路を走査してゴーストドアのタイル座標を _doorTile にキャッシュします。
+    /// ドアが見つからない場合は _spawnTile をフォールバックに使います。
+    /// </summary>
+    private void CacheDoorTile()
+    {
+        for (int row = 0; row < SO_MazeData.Rows; row++)
+        {
+            for (int col = 0; col < SO_MazeData.Cols; col++)
+            {
+                if (_mazeGenerator.MazeData.GetTile(col, row) == SO_MazeData.TileType.GhostDoor)
+                {
+                    _doorTile = new Vector2Int(col, row);
+                    return;
+                }
+            }
+        }
+        _doorTile = _spawnTile; // fallback
+    }
+
+    /// <summary>タイル座標を迷路の有効範囲内にクランプします。</summary>
+    private static Vector2Int ClampToMaze(Vector2Int tile) =>
+        new(Mathf.Clamp(tile.x, 0, SO_MazeData.Cols - 1),
+            Mathf.Clamp(tile.y, 0, SO_MazeData.Rows - 1));
 
     // 通れるか（迷路外・壁・ドア封鎖を考慮）
     private bool IsPassable(Vector2Int tile)
@@ -363,6 +491,102 @@ public class GhostMover : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(
             new Vector3(_currentDir.x, 0f, _currentDir.y));
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  マテリアル制御
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>MaterialPropertyBlock でマテリアルカラーを上書きします（共有マテリアル非破壊）。</summary>
+    private void SetMaterialColor(Color color)
+    {
+        if (_rend == null || _propBlock == null) return;
+        _propBlock.SetColor(BaseColorId, color);
+        _rend.SetPropertyBlock(_propBlock);
+    }
+
+    /// <summary>PropertyBlock を除去してマテリアル元のカラーに戻します。</summary>
+    private void ResetMaterialColor()
+    {
+        if (_rend == null) return;
+        _rend.SetPropertyBlock(null);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  デバッグ描画
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Game ビュー・Scene ビュー両方に見える Debug.DrawLine でデバッグラインを描画します。
+    /// FixedUpdate から毎フレーム呼ばれます。
+    /// </summary>
+    private void DrawDebugLines()
+    {
+        if (_mazeGenerator == null) return;
+
+        // Y をわずかに上げて床面と重ならないようにする
+        const float Y = 0.08f;
+        Vector3 origin     = new(transform.position.x, Y, transform.position.z);
+        Vector3 aiTarget   = _mazeGenerator.TileToWorld(_debugAiTarget);
+        Vector3 nextTarget = _mazeGenerator.TileToWorld(_targetTile);
+        aiTarget.y   = Y;
+        nextTarget.y = Y;
+
+        Color ghostColor = GizmoColor();
+
+        // AI ターゲットへの線（ゴースト固有カラー）
+        // フライテンド中・ハウス内は青/黄で状態を区別する
+        Color lineColor = !_hasPassedDoor         ? Color.yellow
+                        : CurrentMode == GhostMode.Frightened ? new Color(0.3f, 0.5f, 1f)
+                        : ghostColor;
+
+        Debug.DrawLine(origin, aiTarget, lineColor, Time.fixedDeltaTime);
+
+        // 即時ターゲット（次タイル）への短い白線
+        Debug.DrawLine(origin, nextTarget, new Color(1f, 1f, 1f, 0.4f), Time.fixedDeltaTime);
+
+        // AI ターゲット位置に小さな十字（X・Z 軸）
+        float cross = 0.18f;
+        Debug.DrawLine(aiTarget + new Vector3(-cross, 0, 0),
+                       aiTarget + new Vector3( cross, 0, 0), lineColor, Time.fixedDeltaTime);
+        Debug.DrawLine(aiTarget + new Vector3(0, 0, -cross),
+                       aiTarget + new Vector3(0, 0,  cross), lineColor, Time.fixedDeltaTime);
+    }
+
+    /// <summary>
+    /// Scene ビューに Gizmos（球・ワイヤー円）を描画します。
+    /// </summary>
+    private void OnDrawGizmos()
+    {
+        if (!_showDebugDraw || _mazeGenerator == null) return;
+
+        Color c = GizmoColor();
+
+        // AI ターゲットに半透明の球
+        Gizmos.color = new Color(c.r, c.g, c.b, 0.75f);
+        Vector3 aiWorld = _mazeGenerator.TileToWorld(_debugAiTarget);
+        aiWorld.y = 0.08f;
+        Gizmos.DrawSphere(aiWorld, 0.22f);
+
+        // Shy（Clyde）: 追跡切替の境界円（8 タイル半径）
+        if (_chaseType == ChaseType.Shy)
+        {
+            float tileSize = Vector3.Distance(
+                _mazeGenerator.TileToWorld(Vector2Int.zero),
+                _mazeGenerator.TileToWorld(Vector2Int.right));
+            Gizmos.color = new Color(c.r, c.g, c.b, 0.18f);
+            Gizmos.DrawWireSphere(transform.position, 8f * tileSize);
+        }
+    }
+
+    /// <summary>ChaseType ごとのデバッグカラーを返します。</summary>
+    private Color GizmoColor() => _chaseType switch
+    {
+        ChaseType.Direct    => new Color(1.0f, 0.2f, 0.2f), // 赤   (Blinky)
+        ChaseType.LookAhead => new Color(1.0f, 0.5f, 0.8f), // ピンク(Pinky)
+        ChaseType.Mirror    => new Color(0.3f, 0.9f, 1.0f), // シアン(Inky)
+        ChaseType.Shy       => new Color(1.0f, 0.6f, 0.1f), // 橙   (Clyde)
+        _                   => Color.white,
+    };
 
     #endregion
 }
