@@ -23,53 +23,56 @@ public class B_GameManager : MonoBehaviour
     {
         Ready,       // READY! 表示中
         Playing,     // プレイ中
+        KillCam,     // キルカメラ演出中
         PacManDead,  // 死亡演出中
         GameClear,   // ゲームクリア
         GameOver,    // ゲームオーバー
     }
 
     [Header("参照")]
-    [SerializeField] private B_MazeGenerator  _mazeGenerator;
-    [SerializeField] private B_PacManMover    _pacManMover;
-    [SerializeField] private B_DotManager     _dotManager;
-    [SerializeField] private B_ScoreManager   _scoreManager;
+    [SerializeField] private B_MazeGenerator _mazeGenerator;
+    [SerializeField] private B_PacManMover _pacManMover;
+    [SerializeField] private B_DotManager _dotManager;
+    [SerializeField] private B_ScoreManager _scoreManager;
     [SerializeField] private B_MissionManager _missionManager;
+    [SerializeField] private B_KillCamDirector _killCamDirector;
+    [SerializeField] private B_DeathDirector _deathDirector;
 
     [Tooltip("4 体のゴーストを登録してください")]
     [SerializeField] private GhostMover[] _allGhosts;
 
     [Header("ゲームパラメータ")]
-    [SerializeField] private int   _initialLives        = 3;
+    [SerializeField] private int _initialLives = 3;
 
-    [SerializeField] private float _frightenedDuration  = 6f;
-    [SerializeField] private float _deathPauseDuration  = 1.0f;
-    [SerializeField] private float _gameClearPause      = 2.0f;
-    [SerializeField] private float _readyDuration       = 2.0f;
-    [SerializeField] private float _pacManNormalRate    = 0.80f;
+    [SerializeField] private float _frightenedDuration = 6f;
+    [SerializeField] private float _deathPauseDuration = 1.0f;
+    [SerializeField] private float _gameClearPause = 2.0f;
+    [SerializeField] private float _readyDuration = 2.0f;
+    [SerializeField] private float _pacManNormalRate = 0.80f;
     [SerializeField] private float _pacManFrightenedRate = 0.90f;
 
     // ── ゲーム状態 ──────────────────────────────────
     private GameState _gameState;
-    private int       _currentLives;
+    private int _currentLives;
 
     // ── フライテンドタイマー ─────────────────────────
-    private bool  _frightened;
+    private bool _frightened;
     private float _frightenedTimer;
-    private int   _ghostEatCount;
-    private bool  _frightenedWarning; // 警告点滅フェーズに入ったか
+    private int _ghostEatCount;
+    private bool _frightenedWarning; // 警告点滅フェーズに入ったか
 
     [Tooltip("フライテンド終了の何秒前から点滅警告を出すか")]
     [SerializeField] private float _frightenedWarningTime = 2f;
 
 
     /// <summary>残機が変わったときに発火。引数: 新しい残機数。</summary>
-    public event Action<int>       OnLivesChanged;
+    public event Action<int> OnLivesChanged;
 
     /// <summary>ゲーム状態が変わったときに発火。</summary>
     public event Action<GameState> OnGameStateChanged;
 
     /// <summary>ゴーストを食べたときに発火。引数: 得点 (200 / 400 / 800 / 1600)。</summary>
-    public event Action<int>       OnGhostEaten;
+    public event Action<int> OnGhostEaten;
 
     #endregion
 
@@ -95,7 +98,7 @@ public class B_GameManager : MonoBehaviour
         if (_dotManager != null)
         {
             _dotManager.OnEnergizerEaten += HandleEnergizerEaten;
-            _dotManager.OnLevelClear     += HandleGameClear;
+            _dotManager.OnLevelClear += HandleGameClear;
         }
 
         if (_pacManMover != null)
@@ -109,7 +112,7 @@ public class B_GameManager : MonoBehaviour
         if (_dotManager != null)
         {
             _dotManager.OnEnergizerEaten -= HandleEnergizerEaten;
-            _dotManager.OnLevelClear     -= HandleGameClear;
+            _dotManager.OnLevelClear -= HandleGameClear;
         }
 
         if (_pacManMover != null)
@@ -170,9 +173,9 @@ public class B_GameManager : MonoBehaviour
 
     private void ResetFrightened()
     {
-        _frightened        = false;
-        _frightenedTimer   = 0f;
-        _ghostEatCount     = 0;
+        _frightened = false;
+        _frightenedTimer = 0f;
+        _ghostEatCount = 0;
         _frightenedWarning = false;
         _pacManMover.SetSpeedRate(_pacManNormalRate);
     }
@@ -192,8 +195,8 @@ public class B_GameManager : MonoBehaviour
 
     private void HandleEnergizerEaten()
     {
-        _frightenedTimer   = _frightenedDuration;
-        _ghostEatCount     = 0;
+        _frightenedTimer = _frightenedDuration;
+        _ghostEatCount = 0;
         _frightenedWarning = false; // 警告フェーズをリセット
 
         if (!_frightened)
@@ -207,7 +210,7 @@ public class B_GameManager : MonoBehaviour
 
     private void EndFrightened()
     {
-        _frightened      = false;
+        _frightened = false;
         _frightenedTimer = 0f;
 
         foreach (GhostMover ghost in _allGhosts)
@@ -226,29 +229,46 @@ public class B_GameManager : MonoBehaviour
         if (ghost.CurrentMode == GhostMover.GhostMode.Frightened)
             EatGhost(ghost);
         else
-            StartDeathSequence();
+            StartDeathSequence(ghost);
     }
 
     private void EatGhost(GhostMover ghost)
     {
         _ghostEatCount++;
         int score = 200 * (int)Mathf.Pow(2f, _ghostEatCount - 1);
+        StartCoroutine(EatGhostCoroutine(ghost, score));
+    }
+
+    private IEnumerator EatGhostCoroutine(GhostMover ghost, int score)
+    {
+        SetGameState(GameState.KillCam);
+        SetAllMovementEnabled(false);
+
+        if (_killCamDirector != null)
+            yield return _killCamDirector.Play(ghost.transform.position, _pacManMover.transform.position);
+
         ghost.OnEatenByPacMan();
         OnGhostEaten?.Invoke(score);
+
+        SetAllMovementEnabled(true);
+        SetGameState(GameState.Playing);
     }
 
-    private void StartDeathSequence()
+    private void StartDeathSequence(GhostMover killerGhost)
     {
         if (_gameState != GameState.Playing) return;
-        StartCoroutine(DeathCoroutine());
+        StartCoroutine(DeathCoroutine(killerGhost));
     }
 
-    private IEnumerator DeathCoroutine()
+    private IEnumerator DeathCoroutine(GhostMover killerGhost)
     {
         SetGameState(GameState.PacManDead);
         SetAllMovementEnabled(false);
 
-        yield return new WaitForSeconds(_deathPauseDuration);
+        if (_deathDirector != null)
+            yield return _deathDirector.Play(_pacManMover.transform.position, killerGhost.transform.position);
+        else
+            yield return new WaitForSeconds(_deathPauseDuration);
 
         _currentLives--;
         OnLivesChanged?.Invoke(_currentLives);

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "uLoopMCP": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\mahir\\UnityProject\\Pac-Man_02\\Library\\uLoopMCP\\server.bundle.js"
+      ],
+      "env": {
+        "UNITY_TCP_PORT": "8700"
+      }
+    }
+  }
+}

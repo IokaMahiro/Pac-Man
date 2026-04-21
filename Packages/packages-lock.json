@@ -203,11 +203,11 @@
       "depth": 0,
       "source": "git",
       "dependencies": {
-        "com.unity.inputsystem": "1.14.2",
+        "com.unity.test-framework": "1.1.33",
         "com.unity.ugui": "1.0.0",
         "com.unity.nuget.newtonsoft-json": "3.2.1"
       },
-      "hash": "5f62aa3424f5e3d85d4a2c5254d441428de6c845"
+      "hash": "21f4fd5a4c6885e7e81f75f823d84f08dc12511f"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
