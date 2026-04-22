@@ -1,28 +1,7 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
-
-/// <summary>
-/// スコア・残機・ミッション・ゲーム状態を Canvas UI で表示する HUD ビヘイビア。
-/// </summary>
-/// <remarks>
-/// Canvas 階層の例:
-///   Canvas
-///   ├── ScorePanel
-///   │   ├── ScoreLabel      (TMP)
-///   │   ├── ScoreValue      (TMP) ← _scoreText
-///   │   ├── HiScoreLabel    (TMP)
-///   │   └── HiScoreValue    (TMP) ← _hiScoreText
-///   ├── LivesPanel
-///   │   └── LivesValue      (TMP) ← _livesText  例: ●●●
-///   ├── MissionPanel
-///   │   ├── MissionTitle    (TMP)
-///   │   ├── MissionRow0     ← _missionRows[0]
-///   │   ├── MissionRow1     ← _missionRows[1]
-///   │   └── MissionRow2     ← _missionRows[2]
-///   └── StateOverlay        ← _stateOverlay (SetActive で表示切替)
-///       └── StateText       (TMP) ← _stateText
-/// </remarks>
 public class B_GameHUD : MonoBehaviour
 {
     #region 定義
@@ -45,6 +24,7 @@ public class B_GameHUD : MonoBehaviour
     [Tooltip("READY! / GAME OVER / GAME CLEAR を表示する GameObject")]
     [SerializeField] private GameObject _stateOverlay;
     [SerializeField] private TMP_Text   _stateText;
+
 
     // ── ミッション行の UI まとまり ──────────────────────────
     [Serializable]
@@ -87,8 +67,9 @@ public class B_GameHUD : MonoBehaviour
 
         if (_gameManager != null)
         {
-            _gameManager.OnLivesChanged     += UpdateLives;
-            _gameManager.OnGameStateChanged += HandleGameStateChanged;
+            _gameManager.OnLivesChanged          += UpdateLives;
+            _gameManager.OnGameStateChanged      += HandleGameStateChanged;
+            _gameManager.OnRankDecided           += HandleRankDecided;
             UpdateLives(_gameManager.CurrentLives);
         }
 
@@ -100,8 +81,9 @@ public class B_GameHUD : MonoBehaviour
         if (_scoreManager != null) _scoreManager.OnScoreChanged     -= UpdateScore;
         if (_gameManager  != null)
         {
-            _gameManager.OnLivesChanged     -= UpdateLives;
-            _gameManager.OnGameStateChanged -= HandleGameStateChanged;
+            _gameManager.OnLivesChanged         -= UpdateLives;
+            _gameManager.OnGameStateChanged     -= HandleGameStateChanged;
+            _gameManager.OnRankDecided          -= HandleRankDecided;
         }
     }
 
@@ -211,5 +193,11 @@ public class B_GameHUD : MonoBehaviour
         }
     }
 
+    // ランクが確定したときに呼ばれる。HandleGameStateChanged と同一フレームで実行される
+    private void HandleRankDecided(string rank)
+    {
+        if (_stateText == null) return;
+        _stateText.text += $"\nRank : {rank}";
+    }
     #endregion
 }

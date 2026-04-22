@@ -175,6 +175,12 @@ public class B_MazeGenerator : MonoBehaviour
                 GameObject obj   = Instantiate(prefab, worldPos, Quaternion.identity, transform);
                 obj.name         = $"{tileType}_{col}_{row}";
 
+                // アニメーターを動的にアタッチ
+                if (tileType == SO_MazeData.TileType.Dot)
+                    obj.AddComponent<B_DotAnimator>();
+                else if (tileType == SO_MazeData.TileType.Energizer)
+                    obj.AddComponent<B_EnergizerAnimator>();
+
                 _tileObjects[col, row] = obj;
             }
         }

@@ -64,6 +64,18 @@ public class B_GameManager : MonoBehaviour
     [Tooltip("フライテンド終了の何秒前から点滅警告を出すか")]
     [SerializeField] private float _frightenedWarningTime = 2f;
 
+    // ── ミッション全達成ボーナス ──────────────────────────────
+    // 全ミッション達成時に加算するボーナス点
+    [SerializeField] private int _allMissionsBonus = 2000;
+
+    // ── ランク判定スコア閾値 ──────────────────────────────────
+    // この点以上でスコアポイント +2（S ランクへ寄与）
+    [SerializeField] private int _rankScoreHigh = 3000;
+    // この点以上でスコアポイント +1（B/C ランクへ寄与）
+    [SerializeField] private int _rankScoreMid = 1500;
+
+    // 最後に確定したランク
+    private string _currentRank = "";
 
     /// <summary>残機が変わったときに発火。引数: 新しい残機数。</summary>
     public event Action<int> OnLivesChanged;
@@ -74,6 +86,12 @@ public class B_GameManager : MonoBehaviour
     /// <summary>ゴーストを食べたときに発火。引数: 得点 (200 / 400 / 800 / 1600)。</summary>
     public event Action<int> OnGhostEaten;
 
+    /// <summary>全ミッション達成時に発火。引数: ボーナス点。</summary>
+    public event Action<int> OnAllMissionsCompleted;
+
+    /// <summary>ランクが確定したときに発火。引数: ランク文字列（S/A/B/C/D）。</summary>
+    public event Action<string> OnRankDecided;
+
     #endregion
 
     #region 公開プロパティ
@@ -83,6 +101,9 @@ public class B_GameManager : MonoBehaviour
 
     /// <summary>現在の残機数。</summary>
     public int CurrentLives => _currentLives;
+
+    /// <summary>最後に確定したランク（S/A/B/C/D）。</summary>
+    public string CurrentRank => _currentRank;
 
     #endregion
 
@@ -104,6 +125,9 @@ public class B_GameManager : MonoBehaviour
         if (_pacManMover != null)
             _pacManMover.OnGhostHit += HandleGhostHit;
 
+        if (_missionManager != null)
+            _missionManager.OnAllMissionsCompleted += HandleAllMissionsCompleted;
+
         StartGame();
     }
 
@@ -117,6 +141,9 @@ public class B_GameManager : MonoBehaviour
 
         if (_pacManMover != null)
             _pacManMover.OnGhostHit -= HandleGhostHit;
+
+        if (_missionManager != null)
+            _missionManager.OnAllMissionsCompleted -= HandleAllMissionsCompleted;
     }
 
     private void Update()
@@ -219,6 +246,55 @@ public class B_GameManager : MonoBehaviour
         _pacManMover.SetSpeedRate(_pacManNormalRate);
     }
 
+    // ─────────────────────────────────────────────────
+    //  全ミッション達成・ランク
+    // ─────────────────────────────────────────────────
+
+    private void HandleAllMissionsCompleted()
+    {
+        _scoreManager?.AddBonus(_allMissionsBonus);
+        OnAllMissionsCompleted?.Invoke(_allMissionsBonus);
+    }
+
+    /// <summary>
+    /// ミッション達成数とスコアからランクを算出します。
+    /// ミッション達成数（0〜3）+ スコアポイント（0〜2）= 最大 5 点。
+    ///   5点 → S / 4点 → A / 3点 → B / 2点 → C / 0〜1点 → D
+    /// </summary>
+    private string CalcRank()
+    {
+        int done = 0;
+        if (_missionManager != null)
+        {
+            foreach (var m in _missionManager.ActiveMissions)
+            {
+                if (m.IsComplete)
+                {
+                    done++;
+                }
+            }
+        }
+
+        int score = _scoreManager?.CurrentScore ?? 0;
+        int points = done;
+        if (score >= _rankScoreHigh)
+        {
+            points += 2;
+        }
+        else if (score >= _rankScoreMid)
+        {
+            points += 1;
+        }
+
+        return points switch
+        {
+            5 => "S",
+            4 => "A",
+            3 => "B",
+            2 => "C",
+            _ => "D",
+        };
+    }
 
     // 衝突
     private void HandleGhostHit(GhostMover ghost)
@@ -276,6 +352,8 @@ public class B_GameManager : MonoBehaviour
         if (_currentLives <= 0)
         {
             SetGameState(GameState.GameOver);
+            _currentRank = CalcRank();
+            OnRankDecided?.Invoke(_currentRank);
             yield break;
         }
 
@@ -292,11 +370,11 @@ public class B_GameManager : MonoBehaviour
 
     private IEnumerator GameClearCoroutine()
     {
-        SetGameState(GameState.GameClear);
         SetAllMovementEnabled(false);
+        SetGameState(GameState.GameClear);   // MissionManager のハンドラが同期実行される
+        _currentRank = CalcRank();           // ミッション状態が確定した後に判定
+        OnRankDecided?.Invoke(_currentRank);
         yield return new WaitForSeconds(_gameClearPause);
-
-        // ここにクリア後の処理を追加
     }
 
 
