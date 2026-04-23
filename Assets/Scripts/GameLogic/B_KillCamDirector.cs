@@ -8,6 +8,8 @@ using UnityEngine;
 /// 演出フロー:
 ///   Phase 1 … トップダウン → シネマ斜め俯瞰位置へ移動（TimeScale が 1 → minScale へ低下）
 ///   Phase 2 … シネマ位置でホールド
+///   [ヒットストップ] 斬撃ヒット瞬間に時間を凍結してカットを強調
+///   [モデルシェイク] ゴーストが喰らい振動（Phase 3〜4 と並走）
 ///   Phase 3 … ゴーストへズームイン
 ///   Phase 4 … ズーム位置でホールド
 ///   Phase 5 … 元のカメラ位置へ復帰（TimeScale が minScale → 1 へ回復）
@@ -50,6 +52,14 @@ public class B_KillCamDirector : MonoBehaviour
     // スロー最小倍率（0 に近いほど遅くなる）
     [SerializeField] private float _minTimeScale = 0.04f;
 
+    // 斬撃ヒット時に時間を凍結する長さ（実時間・秒）
+    [SerializeField] private float _hitStopDuration = 0.10f;
+
+    // ゴーストが喰らい振動する長さ（実時間・秒）
+    [SerializeField] private float _modelShakeDuration = 0.55f;
+    // 喰らい振動の最大ブレ幅（ワールド単位）
+    [SerializeField] private float _modelShakeMagnitude = 0.18f;
+
     #endregion
 
     #region 公開メソッド
@@ -58,9 +68,13 @@ public class B_KillCamDirector : MonoBehaviour
     /// キルカメラ演出を再生します。
     /// 演出が完了するまで yield return してください。
     /// </summary>
-    public IEnumerator Play(Vector3 ghostWorldPos, Vector3 pacManWorldPos)
+    /// <param name="ghostTransform">食べられるゴーストの Transform（モデルシェイクに使用）</param>
+    /// <param name="pacManWorldPos">パックマンのワールド座標</param>
+    public IEnumerator Play(Transform ghostTransform, Vector3 pacManWorldPos)
     {
         if (_camera == null) yield break;
+
+        Vector3 ghostWorldPos = ghostTransform.position;
 
         Vector3 origPos = _camera.transform.position;
         Quaternion origRot = _camera.transform.rotation;
@@ -75,7 +89,7 @@ public class B_KillCamDirector : MonoBehaviour
 
         // XZ 平面上の横軸（toGhost を 90° 回転）
         Vector3 perp = new(-toGhost.z, 0f, toGhost.x);
-        float sideSign = (_randomizeSide && UnityEngine.Random.value/*Random.valueは0〜1の範囲でランダムな値を返す*/ > 0.5f) ? -1f : 1f;
+        float sideSign = (_randomizeSide && Random.value > 0.5f) ? -1f : 1f;
 
         // シネマ位置: パックマン背後 + 横オフセットの合成
         Vector3 cinPos = pacManWorldPos - toGhost * _backOffset + perp * _lateralOffset * sideSign + Vector3.up * _cinematicHeight;
@@ -91,8 +105,16 @@ public class B_KillCamDirector : MonoBehaviour
         // ── Phase 1: シネマ位置へ移動 + スローイン ────────────────────
         yield return Tween(origPos, origRot, origFov, 1f, cinPos, cinRot, cinFov, _minTimeScale, _moveDuration);
 
+
         // ── Phase 2: ホールド ─────────────────────────────────────────
         yield return new WaitForSecondsRealtime(_holdDuration);
+
+        // ★モデルシェイク:並行処理
+        StartCoroutine(ModelShake(ghostTransform));
+
+        // ── ヒットストップ: 斬撃ヒット瞬間に時間を凍結 ───────────────
+        yield return HitStop();
+
 
         // ── Phase 3: ズームイン ───────────────────────────────────────
         yield return Tween(cinPos, cinRot, cinFov, _minTimeScale, zoomPos, zoomRot, zoomFov, _minTimeScale, _zoomDuration);
@@ -112,6 +134,45 @@ public class B_KillCamDirector : MonoBehaviour
     #endregion
 
     #region 非公開メソッド
+
+    /// <summary>
+    /// 斬撃ヒット瞬間のヒットストップ。
+    /// TimeScale を 0 に凍結し、_hitStopDuration 秒後にスロー倍率へ復帰します。
+    /// </summary>
+    private IEnumerator HitStop()
+    {
+        SetTimeScale(0f);
+        yield return new WaitForSecondsRealtime(_hitStopDuration);
+        SetTimeScale(_minTimeScale);
+    }
+
+    /// <summary>
+    /// ゴーストのワールド座標をランダムにブラしてダメージ振動を演出します。
+    /// Time.unscaledDeltaTime で計測するため、ヒットストップ中も正常に動作します。
+    /// </summary>
+    private IEnumerator ModelShake(Transform target)
+    {
+        if (target == null) yield break;
+
+        Vector3 basePos = target.position;
+        float elapsed   = 0f;
+
+        while (elapsed < _modelShakeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float strength = _modelShakeMagnitude * (1f - elapsed / _modelShakeDuration);
+
+            target.position = basePos + new Vector3(
+                Random.Range(-1f, 1f) * strength * 0.5f,
+                Random.Range(-1f, 1f) * strength /** 0.5f*/,
+                Random.Range(-1f, 1f) * strength * 0.5f);
+
+            yield return null;
+        }
+
+        // 元の座標へ戻す
+        target.position = basePos;
+    }
 
     /// <summary>カメラ位置・回転・FOV・TimeScale を補間するコルーチン。</summary>
     private IEnumerator Tween(

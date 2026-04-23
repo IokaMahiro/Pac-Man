@@ -321,7 +321,7 @@ public class B_GameManager : MonoBehaviour
         SetAllMovementEnabled(false);
 
         if (_killCamDirector != null)
-            yield return _killCamDirector.Play(ghost.transform.position, _pacManMover.transform.position);
+            yield return _killCamDirector.Play(ghost.transform, _pacManMover.transform.position);
 
         ghost.OnEatenByPacMan();
         OnGhostEaten?.Invoke(score);
