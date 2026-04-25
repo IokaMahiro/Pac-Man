@@ -170,7 +170,7 @@ public class B_MissionManager : MonoBehaviour
     //  イベントハンドラ
     // ─────────────────────────────────────────────────────────────
 
-    private void HandleGhostEaten(int score)
+    private void HandleGhostEaten(int score, int _comboCount, Vector3 _worldPos)
     {
         _frightenedGhostCount++;
 

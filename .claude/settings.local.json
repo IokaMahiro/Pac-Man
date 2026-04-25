@@ -29,7 +29,10 @@
       "Bash(Remove-Item \"C:\\\\Users\\\\mahir\\\\UnityProject\\\\Pac-Man_02\\\\Assets\\\\Scripts\\\\UI\\\\B_ScorePopup.cs\" -Force)",
       "Bash(Remove-Item \"C:\\\\Users\\\\mahir\\\\UnityProject\\\\Pac-Man_02\\\\Assets\\\\Scripts\\\\UI\\\\B_ScorePopup.cs.meta\" -Force -ErrorAction SilentlyContinue)",
       "Bash(Remove-Item \"C:\\\\Users\\\\mahir\\\\UnityProject\\\\Pac-Man_02\\\\Assets\\\\Scripts\\\\UI\\\\B_ScorePopupManager.cs\" -Force)",
-      "Bash(Remove-Item \"C:\\\\Users\\\\mahir\\\\UnityProject\\\\Pac-Man_02\\\\Assets\\\\Scripts\\\\UI\\\\B_ScorePopupManager.cs.meta\" -Force -ErrorAction SilentlyContinue)"
+      "Bash(Remove-Item \"C:\\\\Users\\\\mahir\\\\UnityProject\\\\Pac-Man_02\\\\Assets\\\\Scripts\\\\UI\\\\B_ScorePopupManager.cs.meta\" -Force -ErrorAction SilentlyContinue)",
+      "Bash(del \"C:\\\\Users\\\\mahir\\\\UnityProject\\\\Pac-Man_02\\\\Assets\\\\Scripts\\\\GameLogic\\\\B_DeathDirector.cs\")",
+      "Bash(del \"C:\\\\Users\\\\mahir\\\\UnityProject\\\\Pac-Man_02\\\\Assets\\\\Scripts\\\\GameLogic\\\\B_DeathDirector.cs.meta\")",
+      "Bash(xargs ls *)"
     ]
   }
 }

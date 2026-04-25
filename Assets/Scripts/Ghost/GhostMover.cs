@@ -137,6 +137,11 @@ public class GhostMover : MonoBehaviour
         _hasPassedDoor = !_startsInsideHouse; // ハウス外スポーンは最初からドアを封鎖
         CacheDoorTile();                      // ドア座標をキャッシュ
 
+        // フライテンド中に Initialize が呼ばれる場合（死亡リスポーン等）に備え
+        // 点滅フラグとマテリアルカラーを必ずリセットする
+        _isFlashing = false;
+        ResetMaterialColor();
+
         transform.position = _mazeGenerator.TileToWorld(_spawnTile);
 
         if (_col != null) _col.enabled = true;

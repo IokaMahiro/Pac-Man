@@ -70,7 +70,8 @@ public class B_KillCamDirector : MonoBehaviour
     /// </summary>
     /// <param name="ghostTransform">食べられるゴーストの Transform（モデルシェイクに使用）</param>
     /// <param name="pacManWorldPos">パックマンのワールド座標</param>
-    public IEnumerator Play(Transform ghostTransform, Vector3 pacManWorldPos)
+    /// <param name="onHitMoment">ヒットストップ直後に呼ばれるコールバック（スコアポップアップ等）</param>
+    public IEnumerator Play(Transform ghostTransform, Vector3 pacManWorldPos, System.Action onHitMoment = null)
     {
         if (_camera == null) yield break;
 
@@ -114,6 +115,9 @@ public class B_KillCamDirector : MonoBehaviour
 
         // ── ヒットストップ: 斬撃ヒット瞬間に時間を凍結 ───────────────
         yield return HitStop();
+
+        // ヒットストップ直後にコールバック（スコアポップアップ等）
+        onHitMoment?.Invoke();
 
 
         // ── Phase 3: ズームイン ───────────────────────────────────────

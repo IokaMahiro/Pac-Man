@@ -78,13 +78,13 @@ public class B_ScoreManager : MonoBehaviour
     private void Start()
     {
         if (_dotManager  != null) _dotManager.OnScoreEarned += AddScore;
-        if (_gameManager != null) _gameManager.OnGhostEaten += AddScore;
+        if (_gameManager != null) _gameManager.OnGhostEaten += OnGhostEatenScore;
     }
 
     private void OnDestroy()
     {
         if (_dotManager  != null) _dotManager.OnScoreEarned -= AddScore;
-        if (_gameManager != null) _gameManager.OnGhostEaten -= AddScore;
+        if (_gameManager != null) _gameManager.OnGhostEaten -= OnGhostEatenScore;
     }
 
     /// <summary>アプリ終了時にハイスコアをディスクへ書き出します。</summary>
@@ -92,6 +92,9 @@ public class B_ScoreManager : MonoBehaviour
     {
         PlayerPrefs.Save();
     }
+
+    // OnGhostEaten(int score, int comboCount, Vector3 worldPos) → score のみ使用
+    private void OnGhostEatenScore(int score, int _, Vector3 __) => AddScore(score);
 
     /// <summary>得点を加算し、必要に応じてハイスコアをメモリ上で更新します。</summary>
     private void AddScore(int points)

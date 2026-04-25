@@ -36,7 +36,6 @@ public class B_GameManager : MonoBehaviour
     [SerializeField] private B_ScoreManager _scoreManager;
     [SerializeField] private B_MissionManager _missionManager;
     [SerializeField] private B_KillCamDirector _killCamDirector;
-    [SerializeField] private B_DeathDirector _deathDirector;
 
     [Tooltip("4 体のゴーストを登録してください")]
     [SerializeField] private GhostMover[] _allGhosts;
@@ -83,8 +82,20 @@ public class B_GameManager : MonoBehaviour
     /// <summary>ゲーム状態が変わったときに発火。</summary>
     public event Action<GameState> OnGameStateChanged;
 
-    /// <summary>ゴーストを食べたときに発火。引数: 得点 (200 / 400 / 800 / 1600)。</summary>
-    public event Action<int> OnGhostEaten;
+    /// <summary>ゴーストを食べたときに発火。引数: 得点 / 連続撃破数 / 撃破ワールド座標。</summary>
+    public event Action<int, int, Vector3> OnGhostEaten;
+
+    /// <summary>ヒットストップ直後（ポップアップ表示タイミング）に発火。引数: 得点 / 連続撃破数 / 撃破ワールド座標。</summary>
+    public event Action<int, int, Vector3> OnGhostScorePopup;
+
+    /// <summary>フライテンドモード開始時に発火。</summary>
+    public event Action OnFrightenedStarted;
+
+    /// <summary>フライテンドモード終了時に発火。</summary>
+    public event Action OnFrightenedEnded;
+
+    /// <summary>ドット取得時に発火。引数: 倍率適用済みスコア / パックマンのワールド座標。</summary>
+    public event Action<int, Vector3> OnDotScored;
 
     /// <summary>全ミッション達成時に発火。引数: ボーナス点。</summary>
     public event Action<int> OnAllMissionsCompleted;
@@ -105,6 +116,10 @@ public class B_GameManager : MonoBehaviour
     /// <summary>最後に確定したランク（S/A/B/C/D）。</summary>
     public string CurrentRank => _currentRank;
 
+    /// <summary>現在のフライテンドコンボ倍率（非フライテンド中または0体撃破は 1）。</summary>
+    public int CurrentFrightenedMultiplier =>
+        (_frightened && _ghostEatCount > 0) ? (int)Mathf.Pow(2f, _ghostEatCount) : 1;
+
     #endregion
 
     #region 非公開メソッド
@@ -112,6 +127,7 @@ public class B_GameManager : MonoBehaviour
     private void Awake()
     {
         _currentLives = _initialLives;
+        _gameState = GameState.GameOver;
     }
 
     private void Start()
@@ -119,7 +135,8 @@ public class B_GameManager : MonoBehaviour
         if (_dotManager != null)
         {
             _dotManager.OnEnergizerEaten += HandleEnergizerEaten;
-            _dotManager.OnLevelClear += HandleGameClear;
+            _dotManager.OnLevelClear     += HandleGameClear;
+            _dotManager.OnScoreEarned    += HandleDotScoreEarned;
         }
 
         if (_pacManMover != null)
@@ -136,7 +153,8 @@ public class B_GameManager : MonoBehaviour
         if (_dotManager != null)
         {
             _dotManager.OnEnergizerEaten -= HandleEnergizerEaten;
-            _dotManager.OnLevelClear -= HandleGameClear;
+            _dotManager.OnLevelClear     -= HandleGameClear;
+            _dotManager.OnScoreEarned    -= HandleDotScoreEarned;
         }
 
         if (_pacManMover != null)
@@ -200,6 +218,14 @@ public class B_GameManager : MonoBehaviour
 
     private void ResetFrightened()
     {
+        // フライテンド中に死亡・リスポーンした場合、ゴーストの視覚状態と UI を明示的にリセット
+        if (_frightened)
+        {
+            foreach (GhostMover ghost in _allGhosts)
+                ghost.ExitFrightened();
+            OnFrightenedEnded?.Invoke();
+        }
+
         _frightened = false;
         _frightenedTimer = 0f;
         _ghostEatCount = 0;
@@ -209,6 +235,10 @@ public class B_GameManager : MonoBehaviour
 
     private IEnumerator ReadyCoroutine()
     {
+        // 全 MonoBehaviour の Start() が完了するまで 1 フレーム待つ。
+        // これにより B_GameHUD 等のイベント購読が確実に済んだ後に状態遷移する。
+        yield return null;
+
         SetGameState(GameState.Ready);
         SetAllMovementEnabled(false);
         yield return new WaitForSeconds(_readyDuration);
@@ -222,17 +252,25 @@ public class B_GameManager : MonoBehaviour
 
     private void HandleEnergizerEaten()
     {
-        _frightenedTimer = _frightenedDuration;
-        _ghostEatCount = 0;
+        _frightenedTimer   = _frightenedDuration;
         _frightenedWarning = false; // 警告フェーズをリセット
 
         if (!_frightened)
+        {
+            // 新規フライテンド開始：コンボをリセットしてUIに通知
+            _ghostEatCount = 0;
             _pacManMover.SetSpeedRate(_pacManFrightenedRate);
-
-        // 初回・再取得いずれも SetFrightened を呼ぶ（色と点滅を青にリセット）
-        _frightened = true;
-        foreach (GhostMover ghost in _allGhosts)
-            ghost.SetFrightened();
+            _frightened = true;
+            foreach (GhostMover ghost in _allGhosts)
+                ghost.SetFrightened();
+            OnFrightenedStarted?.Invoke();
+        }
+        else
+        {
+            // フライテンド延長：コンボを引き継ぎ、点滅を青に戻すだけ
+            foreach (GhostMover ghost in _allGhosts)
+                ghost.SetFrightened();
+        }
     }
 
     private void EndFrightened()
@@ -244,6 +282,24 @@ public class B_GameManager : MonoBehaviour
             ghost.ExitFrightened();
 
         _pacManMover.SetSpeedRate(_pacManNormalRate);
+        OnFrightenedEnded?.Invoke();
+    }
+
+    /// <summary>
+    /// ドット取得時のスコア処理。フライテンドコンボ中は倍率ボーナスを加算し、
+    /// HUD ポップアップ用に OnDotScored を発火します。
+    /// </summary>
+    private void HandleDotScoreEarned(int baseScore)
+    {
+        int multiplier = CurrentFrightenedMultiplier;
+
+        // 倍率 > 1 のときボーナス分を追加（基本スコアは B_ScoreManager が処理済み）
+        if (multiplier > 1)
+            _scoreManager?.AddBonus(baseScore * (multiplier - 1));
+
+        // HUD ポップアップ用イベント（倍率適用済みスコア + パックマン座標）
+        Vector3 pacPos = _pacManMover != null ? _pacManMover.transform.position : Vector3.zero;
+        OnDotScored?.Invoke(baseScore * multiplier, pacPos);
     }
 
     // ─────────────────────────────────────────────────
@@ -312,19 +368,27 @@ public class B_GameManager : MonoBehaviour
     {
         _ghostEatCount++;
         int score = 200 * (int)Mathf.Pow(2f, _ghostEatCount - 1);
-        StartCoroutine(EatGhostCoroutine(ghost, score));
+        StartCoroutine(EatGhostCoroutine(ghost, score, _ghostEatCount));
     }
 
-    private IEnumerator EatGhostCoroutine(GhostMover ghost, int score)
+    private IEnumerator EatGhostCoroutine(GhostMover ghost, int score, int comboCount)
     {
         SetGameState(GameState.KillCam);
         SetAllMovementEnabled(false);
 
+        // キルカム前に座標を確保（OnEatenByPacMan でリスポーンされる前）
+        Vector3 ghostPos = ghost.transform.position;
+
+        // ヒットストップ直後にスコアポップアップを表示するコールバック
+        void OnHit() => OnGhostScorePopup?.Invoke(score, comboCount, ghostPos);
+
         if (_killCamDirector != null)
-            yield return _killCamDirector.Play(ghost.transform, _pacManMover.transform.position);
+            yield return _killCamDirector.Play(ghost.transform, _pacManMover.transform.position, OnHit);
+        else
+            OnGhostScorePopup?.Invoke(score, comboCount, ghostPos); // キルカムなし時のフォールバック
 
         ghost.OnEatenByPacMan();
-        OnGhostEaten?.Invoke(score);
+        OnGhostEaten?.Invoke(score, comboCount, ghostPos);
 
         SetAllMovementEnabled(true);
         SetGameState(GameState.Playing);
@@ -341,10 +405,7 @@ public class B_GameManager : MonoBehaviour
         SetGameState(GameState.PacManDead);
         SetAllMovementEnabled(false);
 
-        if (_deathDirector != null)
-            yield return _deathDirector.Play(_pacManMover.transform.position, killerGhost.transform.position);
-        else
-            yield return new WaitForSeconds(_deathPauseDuration);
+        yield return new WaitForSeconds(_deathPauseDuration);
 
         _currentLives--;
         OnLivesChanged?.Invoke(_currentLives);
