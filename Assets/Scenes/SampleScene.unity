@@ -1629,8 +1629,8 @@ Transform:
   m_GameObject: {fileID: 888611046}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.03, y: 0, z: 0.45}
-  m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
+  m_LocalPosition: {x: -0.03, y: 0, z: 0.49}
+  m_LocalScale: {x: 0.44, y: 0.44, z: 0.44}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 385840660}
@@ -4064,7 +4064,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7829956621412248277, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8405104857285545903, guid: 1c9b1043de051664aa1434618fffb665, type: 3}
       propertyPath: m_LocalPosition.x
@@ -4213,7 +4213,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4561568674375339678, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 4389374156567768709, guid: a3f9246a417963242a5067b37ecdac5b, type: 3}
@@ -4270,7 +4270,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 36642661208248510, guid: 8f1a82d4fd732db4abf7a9a96b31ba92, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 1.84
+      value: 1.77
       objectReference: {fileID: 0}
     - target: {fileID: 36642661208248510, guid: 8f1a82d4fd732db4abf7a9a96b31ba92, type: 3}
       propertyPath: m_LocalRotation.w
@@ -4308,6 +4308,18 @@ PrefabInstance:
       propertyPath: _mazeGenerator
       value: 
       objectReference: {fileID: 161537086}
+    - target: {fileID: 1809849282990979679, guid: 8f1a82d4fd732db4abf7a9a96b31ba92, type: 3}
+      propertyPath: _rotationSpeed
+      value: 15
+      objectReference: {fileID: 0}
+    - target: {fileID: 1809849282990979679, guid: 8f1a82d4fd732db4abf7a9a96b31ba92, type: 3}
+      propertyPath: _cornerAssistRadius
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 1809849282990979679, guid: 8f1a82d4fd732db4abf7a9a96b31ba92, type: 3}
+      propertyPath: _inputBufferDuration
+      value: 0.3
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -4379,6 +4391,10 @@ PrefabInstance:
     - target: {fileID: 650479568142434484, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
       propertyPath: m_Name
       value: P_Blinky
+      objectReference: {fileID: 0}
+    - target: {fileID: 650479568142434484, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4004534498866600538, guid: dbb4bdc3b8b1b87448e6fcf232ac24d6, type: 3}
       propertyPath: m_Enabled
@@ -4479,7 +4495,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7109774472749869185, guid: bb024e8dc37895e42970a98984defd48, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7381883088092781141, guid: bb024e8dc37895e42970a98984defd48, type: 3}
       propertyPath: _pacManMove

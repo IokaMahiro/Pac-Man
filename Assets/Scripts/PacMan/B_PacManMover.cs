@@ -36,17 +36,35 @@ public class B_PacManMover : MonoBehaviour
 
     [SerializeField] private B_MazeGenerator _mazeGenerator;
 
+
+    /// <summary>
+    /// 操作性改善関連
+    /// </summary>
+    //コーナーアシスト:タイル中心の手前この距離内で直角入力を受け付けて早めに旋回する
+    [SerializeField, Range(0f, 1.5f)] private float _cornerAssistRadius = 0.5f;
+    //入力バッファ保持時間（秒）: キーを離してからもこの時間だけ入力を記憶
+    [SerializeField, Range(0f, 0.5f)] private float _inputBufferDuration = 0.3f;
+    //旋回速度（Slerp 係数 × 秒）: 大きいほど素早く目標へ近づく、小さいほど緩やかに旋回する
+    [SerializeField, Range(1f, 30f)] private float _rotationSpeed = 15f;
+
+    // 旋回先の目標回転（SmoothRotation で毎フレーム補間する）
+    private Quaternion _targetRotation = Quaternion.identity;
+
     // タイル座標・移動状態
     private Vector2Int _currentTile;   // パックマンが現在いるタイル
     private Vector2Int _targetTile;    // 移動先タイル（到達後に更新）
     private Vector2Int _currentDir;    // 現在の移動方向（タイル単位）
     private Vector2Int _bufferedDir;   // 次の交差点で試みる方向（プリターン用）
 
+
+    // 入力バッファタイマー（キーを離した後も _inputBufferDuration 秒間バッファを保持）
+    private float _inputBufferTimer;
+
     // ドット・エナジャイザー食べ後の停止フレーム残数
     private int _stopFramesRemaining;
 
     // タグ定数（Inspector の Tag 設定と一致させること）
-    private const string TagDot       = "Dot";
+    private const string TagDot = "Dot";
     private const string TagEnergizer = "Energizer";
 
     public event Action<bool> OnDotEaten;
@@ -64,10 +82,10 @@ public class B_PacManMover : MonoBehaviour
     /// <param name="spawnTile">配置するタイル座標</param>
     public void Initialize(Vector2Int spawnTile)
     {
-        _currentTile         = spawnTile;
-        _targetTile          = spawnTile;
-        _currentDir          = Vector2Int.zero;
-        _bufferedDir         = Vector2Int.zero;
+        _currentTile = spawnTile;
+        _targetTile = spawnTile;
+        _currentDir = Vector2Int.zero;
+        _bufferedDir = Vector2Int.zero;
         _stopFramesRemaining = 0;
 
         transform.position = _mazeGenerator.TileToWorld(spawnTile);
@@ -111,6 +129,7 @@ public class B_PacManMover : MonoBehaviour
     private void Update()
     {
         ReadInput();
+        SmoothRotation();
     }
 
     private void FixedUpdate()
@@ -128,16 +147,44 @@ public class B_PacManMover : MonoBehaviour
         MoveStep();
     }
 
-    /// <summary>キーボード入力を読み取り _bufferedDir を更新します。</summary>
+    /// <summary>
+    /// キーボード入力を読み取り _bufferedDir を更新します。
+    /// キーを離してから _inputBufferDuration 秒間はバッファを保持するため、
+    /// 素早いタップでも次のタイル到達まで入力が生き続けます。
+    /// </summary>
     private void ReadInput()
     {
         Keyboard kb = Keyboard.current;
         if (kb == null) return;
 
-        if      (kb.upArrowKey.isPressed    || kb.wKey.isPressed) _bufferedDir = new Vector2Int( 0, -1);
-        else if (kb.downArrowKey.isPressed  || kb.sKey.isPressed) _bufferedDir = new Vector2Int( 0,  1);
-        else if (kb.leftArrowKey.isPressed  || kb.aKey.isPressed) _bufferedDir = new Vector2Int(-1,  0);
-        else if (kb.rightArrowKey.isPressed || kb.dKey.isPressed) _bufferedDir = new Vector2Int( 1,  0);
+        Vector2Int input = ReadDirectionalInput(kb);
+
+        if (input != Vector2Int.zero)
+        {
+            // 新たな入力：バッファを更新してタイマーをリセット
+            _bufferedDir = input;
+            _inputBufferTimer = _inputBufferDuration;
+        }
+        else
+        {
+            // 入力なし：タイマーが切れたらバッファをクリア
+            _inputBufferTimer -= Time.deltaTime;
+            if (_inputBufferTimer <= 0f)
+            {
+                _bufferedDir = Vector2Int.zero;
+                _inputBufferTimer = 0f;
+            }
+        }
+    }
+
+    /// <summary>現在押されているキーから方向ベクトルを返します。何も押されていなければ zero。</summary>
+    private static Vector2Int ReadDirectionalInput(Keyboard kb)
+    {
+        if (kb.upArrowKey.isPressed || kb.wKey.isPressed) return new Vector2Int(0, -1);
+        if (kb.downArrowKey.isPressed || kb.sKey.isPressed) return new Vector2Int(0, 1);
+        if (kb.leftArrowKey.isPressed || kb.aKey.isPressed) return new Vector2Int(-1, 0);
+        if (kb.rightArrowKey.isPressed || kb.dKey.isPressed) return new Vector2Int(1, 0);
+        return Vector2Int.zero;
     }
 
     /// <summary>1 FixedUpdate フレーム分の移動処理を実行します。</summary>
@@ -147,34 +194,92 @@ public class B_PacManMover : MonoBehaviour
 
         // Y 軸を無視した平面上の距離で判定
         Vector3 flatPos = new Vector3(transform.position.x, 0f, transform.position.z);
-        float   dist    = Vector3.Distance(flatPos, targetWorld);
-        float   step    = _baseSpeed * _speedRate * Time.fixedDeltaTime;
+        float dist = Vector3.Distance(flatPos, targetWorld);
+        float step = _baseSpeed * _speedRate * Time.fixedDeltaTime;
 
+        // Uターンを即座に反映する
+        // 反対方向入力はタイル中心を待たず即座に反転する。
+        // _targetTile を「来た道」に切り替えるだけでよい。
+        if (_bufferedDir != Vector2Int.zero && _bufferedDir == -_currentDir)
+        {
+            _targetTile = _currentTile; // 進行方向を逆にする
+            _currentDir = _bufferedDir;
+            UpdateFacingDir();
+            // バッファはクリアしない（到着後も方向を保持したいため）
+        }
+
+        // 曲がり角を曲がりやすく（早入力: コーナーアシスト）
+        // 直角ターンに限り、タイル中心の手前 _cornerAssistRadius 以内で入力を受付て旋回
+        if (_bufferedDir != Vector2Int.zero
+            && _bufferedDir != _currentDir
+            && _bufferedDir != -_currentDir   // U ターンは上で処理済み
+            && dist <= _cornerAssistRadius
+            && IsPassableFrom(_targetTile, _bufferedDir))
+        {
+            // タイル中心へスナップして旋回
+            transform.position = targetWorld;
+            _currentTile = _targetTile;
+            HandleTunnelWarp();
+            ChooseNextTile();
+            return;
+        }
+
+        // 曲がり角を曲がりやすく（遅入力: ポストコーナーグレース）
+        // タイル中心を通過した直後でも _cornerAssistRadius 以内なら直前タイルへ戻して旋回する。
+        // 「通過したばかりのタイル（_currentTile）に曲がれる入力が来た」ケースを救済する。
+        if (_bufferedDir != Vector2Int.zero
+            && _bufferedDir != _currentDir
+            && _bufferedDir != -_currentDir   // U ターンは上で処理済み
+            && _currentTile != _targetTile    // 移動中（停止中は不要）
+            && IsPassableFrom(_currentTile, _bufferedDir))
+        {
+            Vector3 currentWorld = _mazeGenerator.TileToWorld(_currentTile);
+            Vector3 flatCurrent = new Vector3(currentWorld.x, 0f, currentWorld.z);
+            float distToCurrent = Vector3.Distance(flatPos, flatCurrent);
+
+            if (distToCurrent <= _cornerAssistRadius)
+            {
+                // 直前のタイル中心へ戻してから旋回
+                transform.position = currentWorld;
+                _targetTile = _currentTile;
+                ChooseNextTile();
+                return;
+            }
+        }
+
+        // 通常移動
+        // タイル中心到達でスナップ＋次方向決定
         // 「このフレームでタイル中心に到達可能」かどうかでスナップを判定する。
         // 固定しきい値を使うと 1 フレームの移動量 > しきい値 のとき
-        // 中心を行き過ぎ → 引き返し → 行き過ぎ の振動が起きるためこの方式を採用。
         if (dist <= step)
         {
-            // ──── タイル中心到達時の処理 ────
-            // currentTile と targetTile が異なる場合のみ到達イベントを処理
-            // （停止中の再呼び出しで二重処理しないようにする）
             if (_currentTile != _targetTile)
             {
                 transform.position = targetWorld;
-                _currentTile       = _targetTile;
-
-                HandleTunnelWarp(); // トンネル到達時のワープ
-                // ドット取得は OnTriggerEnter（物理トリガー）で処理する
+                _currentTile = _targetTile;
+                HandleTunnelWarp();
             }
-
-            ChooseNextTile(); // 毎フレーム呼ぶことで、停止中の入力にも即応答
+            ChooseNextTile(); // 停止中の入力にも毎フレーム即応答
         }
         else
         {
-            // ──── タイル中心へ向けて移動 ────
             Vector3 moveDir = (targetWorld - transform.position).normalized;
             transform.position += moveDir * step;
         }
+    }
+
+    /// <summary>
+    /// fromTile から dir 方向への移動がパックマンにとって通行可能か返します。
+    /// トンネル境界越えを考慮します。
+    /// </summary>
+    private bool IsPassableFrom(Vector2Int fromTile, Vector2Int dir)
+    {
+        Vector2Int next = fromTile + dir;
+
+        if (next.x < 0 || next.x >= SO_MazeData.Cols)
+            return _mazeGenerator.MazeData.GetTile(fromTile) == SO_MazeData.TileType.Tunnel;
+
+        return _mazeGenerator.MazeData.IsPassableForPacMan(next.x, next.y);
     }
 
     /// <summary>
@@ -185,14 +290,14 @@ public class B_PacManMover : MonoBehaviour
     {
         if (_currentTile.x < 0)
         {
-            _currentTile       = new Vector2Int(SO_MazeData.Cols - 1, _currentTile.y);
-            _targetTile        = _currentTile;
+            _currentTile = new Vector2Int(SO_MazeData.Cols - 1, _currentTile.y);
+            _targetTile = _currentTile;
             transform.position = _mazeGenerator.TileToWorld(_currentTile);
         }
         else if (_currentTile.x >= SO_MazeData.Cols)
         {
-            _currentTile       = new Vector2Int(0, _currentTile.y);
-            _targetTile        = _currentTile;
+            _currentTile = new Vector2Int(0, _currentTile.y);
+            _targetTile = _currentTile;
             transform.position = _mazeGenerator.TileToWorld(_currentTile);
         }
     }
@@ -276,14 +381,24 @@ public class B_PacManMover : MonoBehaviour
     }
 
     /// <summary>
-    /// _currentDir に応じて transform.rotation を更新します。
+    /// _targetRotation へ向けて毎フレーム _rotationSpeed 度/秒で滑らかに旋回します。
+    /// Update() から呼ばれるため Time.deltaTime を使用します。
+    /// </summary>
+    private void SmoothRotation()
+    {
+        transform.rotation = Quaternion.Slerp(transform.rotation, _targetRotation, _rotationSpeed * Time.deltaTime);
+    }
+
+    /// <summary>
+    /// _currentDir に応じて _targetRotation を更新します。
+    /// 実際の旋回は SmoothRotation() が毎フレーム補間して行います。
     /// タイル単位の方向ベクトルをワールドの forward に変換します。
     /// </summary>
     private void UpdateFacingDir()
     {
         if (_currentDir == Vector2Int.zero) return;
-        transform.rotation = Quaternion.LookRotation(
-            new Vector3(_currentDir.x, 0f, _currentDir.y));
+
+        _targetRotation = Quaternion.LookRotation(new Vector3(_currentDir.x, 0f, -_currentDir.y));
     }
 
     #endregion
